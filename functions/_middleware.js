@@ -20,9 +20,9 @@ export async function onRequest(context) {
   #todayView .amount-label-row {
     display:flex !important;
     align-items:center;
-    justify-content:space-between;
-    gap:12px;
+    justify-content:flex-end;
     width:100%;
+    margin-bottom:7px;
   }
   #amountUsdPreview {
     margin-left:auto;
@@ -37,9 +37,8 @@ export async function onRequest(context) {
 </style>`;
 
   const cleanForm = `<form id="form" class="card">
-<label class="amount-label-row"><span>How much did you spend?</span><span id="amountUsdPreview">≈ $0.00 USD</span></label>
+<label class="amount-label-row"><span id="amountUsdPreview">≈ $0.00 USD</span></label>
 <div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div>
-<label>What was it for?</label>
 <div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder="e.g. Dinner with friends"></div>
 <button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button>
 </form>`;
