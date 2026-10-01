@@ -21,6 +21,7 @@ export async function onRequest(context) {
   #todayView .sub { display: none !important; }
   #todayView .stats { display: none !important; }
   #todayView .ey { display: none !important; }
+  #todayView .rate { display: none !important; }
   #todayView .usd { color: var(--green) !important; }
 </style>`;
 
