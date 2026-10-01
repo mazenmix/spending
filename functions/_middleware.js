@@ -17,8 +17,10 @@ export async function onRequest(context) {
   let html = await response.text();
   const uiOverrides = `
 <style id="mx-ui-cleanup">
+  #todayView .brand { display: none !important; }
   #todayView .sub { display: none !important; }
   #todayView .stats { display: none !important; }
+  #todayView .ey { display: none !important; }
   #todayView .usd { color: var(--green) !important; }
 </style>`;
 
