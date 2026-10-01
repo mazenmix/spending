@@ -34,10 +34,21 @@ export async function onRequest(context) {
   }
 </style>`;
 
+  // Rebuild the expense form server-side so the two fields can never merge.
+  const cleanForm = `<form id="form" class="card">
+<label class="amount-label-row"><span>How much did you spend?</span><span id="amountUsdPreview">≈ $0.00 USD</span></label>
+<div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+<label>What was it for?</label>
+<div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder="e.g. Dinner with friends"></div>
+<button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button>
+</form>`;
+
+  html = html.replace(/<form id="form" class="card">[\s\S]*?<\/form>/, cleanForm);
+
   const livePreview = `
 <script id="mx-live-usd-preview">
 (() => {
-  function rateNow() {
+  const rateNow = () => {
     try {
       const saved = JSON.parse(localStorage.getItem('mxs.rate.v1') || '{}');
       const r = Number(saved.rate);
@@ -45,52 +56,31 @@ export async function onRequest(context) {
     } catch (_) {
       return 0.017;
     }
-  }
+  };
 
-  function setup() {
-    const form = document.getElementById('form');
+  const updateUsdPreview = () => {
     const amount = document.getElementById('amount');
-    const desc = document.getElementById('desc');
-    if (!form || !amount || !desc) return false;
+    const preview = document.getElementById('amountUsdPreview');
+    if (!amount || !preview) return;
+    const php = Number(String(amount.value || '').replace(/,/g, '').trim());
+    const usd = php > 0 ? php * rateNow() : 0;
+    preview.textContent = '≈ $' + usd.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }) + ' USD';
+  };
 
-    const labels = form.querySelectorAll('label');
-    const amountLabel = labels[0];
-    if (!amountLabel) return false;
+  document.addEventListener('input', (event) => {
+    if (event.target && event.target.id === 'amount') updateUsdPreview();
+  });
+  document.addEventListener('change', (event) => {
+    if (event.target && event.target.id === 'amount') updateUsdPreview();
+  });
 
-    amountLabel.classList.add('amount-label-row');
-
-    let preview = document.getElementById('amountUsdPreview');
-    if (!preview) {
-      preview = document.createElement('span');
-      preview.id = 'amountUsdPreview';
-      preview.textContent = '';
-      amountLabel.appendChild(preview);
-    }
-
-    const update = () => {
-      const php = Number(String(amount.value || '').replace(/,/g, '').trim());
-      preview.textContent = php > 0
-        ? '≈ $' + (php * rateNow()).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD'
-        : '';
-    };
-
-    if (!amount.dataset.mxPreviewBound) {
-      amount.dataset.mxPreviewBound = '1';
-      amount.addEventListener('input', update);
-      amount.addEventListener('keyup', update);
-      amount.addEventListener('change', update);
-    }
-
-    update();
-    return true;
-  }
-
-  if (!setup()) {
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries++;
-      if (setup() || tries > 20) clearInterval(timer);
-    }, 150);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updateUsdPreview, { once:true });
+  } else {
+    updateUsdPreview();
   }
 })();
 </script>`;
