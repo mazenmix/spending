@@ -27,8 +27,8 @@ export async function onRequest(context) {
   #amountUsdPreview {
     margin-left:auto;
     color:var(--green);
-    font-size:16px;
-    line-height:1.2;
+    font-size:20px;
+    line-height:1.15;
     font-weight:900;
     letter-spacing:.1px;
     white-space:nowrap;
