@@ -1,0 +1,19 @@
+{
+  "name": "MX Spend",
+  "short_name": "MX Spend",
+  "description": "Fast daily expense logging in Philippine pesos.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#02070c",
+  "theme_color": "#050b12",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
