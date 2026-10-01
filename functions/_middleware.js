@@ -34,7 +34,6 @@ export async function onRequest(context) {
   }
 </style>`;
 
-  // Rebuild the expense form server-side so the two fields can never merge.
   const cleanForm = `<form id="form" class="card">
 <label class="amount-label-row"><span>How much did you spend?</span><span id="amountUsdPreview">≈ $0.00 USD</span></label>
 <div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div>
@@ -44,49 +43,8 @@ export async function onRequest(context) {
 </form>`;
 
   html = html.replace(/<form id="form" class="card">[\s\S]*?<\/form>/, cleanForm);
-
-  const livePreview = `
-<script id="mx-live-usd-preview">
-(() => {
-  const rateNow = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('mxs.rate.v1') || '{}');
-      const r = Number(saved.rate);
-      return r > 0 ? r : 0.017;
-    } catch (_) {
-      return 0.017;
-    }
-  };
-
-  const updateUsdPreview = () => {
-    const amount = document.getElementById('amount');
-    const preview = document.getElementById('amountUsdPreview');
-    if (!amount || !preview) return;
-    const php = Number(String(amount.value || '').replace(/,/g, '').trim());
-    const usd = php > 0 ? php * rateNow() : 0;
-    preview.textContent = '≈ $' + usd.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }) + ' USD';
-  };
-
-  document.addEventListener('input', (event) => {
-    if (event.target && event.target.id === 'amount') updateUsdPreview();
-  });
-  document.addEventListener('change', (event) => {
-    if (event.target && event.target.id === 'amount') updateUsdPreview();
-  });
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updateUsdPreview, { once:true });
-  } else {
-    updateUsdPreview();
-  }
-})();
-</script>`;
-
   html = html.replace('</head>', uiOverrides + '\n</head>');
-  html = html.replace('</body>', livePreview + '\n</body>');
+  html = html.replace('</body>', '<script src="/live-preview.js?v=4" defer></script>\n</body>');
 
   const headers = new Headers(response.headers);
   headers.delete('content-length');
