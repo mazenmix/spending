@@ -1,7 +1,6 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  // Never interfere with API routes.
   if (url.pathname.startsWith('/api/')) {
     return context.next();
   }
@@ -9,12 +8,12 @@ export async function onRequest(context) {
   const response = await context.next();
   const contentType = response.headers.get('content-type') || '';
 
-  // Only adjust rendered HTML pages.
   if (!contentType.includes('text/html')) {
     return response;
   }
 
   let html = await response.text();
+
   const uiOverrides = `
 <style id="mx-ui-cleanup">
   #todayView .brand { display: none !important; }
@@ -28,17 +27,24 @@ export async function onRequest(context) {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    width: 100%;
   }
   #amountUsdPreview {
     margin-left: auto;
     color: var(--green);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 800;
     letter-spacing: .1px;
     white-space: nowrap;
     text-align: right;
   }
 </style>`;
+
+  // Put the USD preview directly in the HTML beside the amount label.
+  html = html.replace(
+    '<label>How much did you spend?</label>',
+    '<label class="amount-label-row"><span>How much did you spend?</span><span id="amountUsdPreview"></span></label>'
+  );
 
   const livePreview = `
 <script id="mx-live-usd-preview">
@@ -55,20 +61,23 @@ export async function onRequest(context) {
 
   function initPreview() {
     const amount = document.getElementById('amount');
-    if (!amount || document.getElementById('amountUsdPreview')) return;
+    let preview = document.getElementById('amountUsdPreview');
+    if (!amount) return;
 
-    const field = amount.closest('.field');
-    if (!field) return;
-
-    const label = field.previousElementSibling;
-    if (!label || label.tagName !== 'LABEL') return;
-
-    label.classList.add('amount-label-row');
-
-    const preview = document.createElement('span');
-    preview.id = 'amountUsdPreview';
-    preview.textContent = '';
-    label.appendChild(preview);
+    // Fallback for older cached HTML.
+    if (!preview) {
+      const field = amount.closest('.field');
+      const label = field && field.previousElementSibling;
+      if (!label || label.tagName !== 'LABEL') return;
+      label.classList.add('amount-label-row');
+      const text = label.textContent.trim();
+      label.textContent = '';
+      const title = document.createElement('span');
+      title.textContent = text || 'How much did you spend?';
+      preview = document.createElement('span');
+      preview.id = 'amountUsdPreview';
+      label.append(title, preview);
+    }
 
     const update = () => {
       const php = Number(String(amount.value || '').replace(/,/g, '').trim());
@@ -82,8 +91,9 @@ export async function onRequest(context) {
       }) + ' USD';
     };
 
-    amount.addEventListener('input', update, { passive: true });
-    amount.addEventListener('change', update, { passive: true });
+    amount.addEventListener('input', update);
+    amount.addEventListener('keyup', update);
+    amount.addEventListener('change', update);
     update();
   }
 
@@ -100,7 +110,7 @@ export async function onRequest(context) {
 
   const headers = new Headers(response.headers);
   headers.delete('content-length');
-  headers.set('cache-control', 'no-store');
+  headers.set('cache-control', 'no-store, max-age=0');
 
   return new Response(html, {
     status: response.status,
