@@ -23,13 +23,20 @@ export async function onRequest(context) {
   #todayView .ey { display: none !important; }
   #todayView .rate { display: none !important; }
   #todayView .usd { color: var(--green) !important; }
+  #todayView .amount-label-row {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
   #amountUsdPreview {
-    margin: -5px 4px 12px;
-    min-height: 16px;
+    margin-left: auto;
     color: var(--green);
     font-size: 12px;
     font-weight: 750;
     letter-spacing: .1px;
+    white-space: nowrap;
+    text-align: right;
   }
 </style>`;
 
@@ -53,10 +60,15 @@ export async function onRequest(context) {
     const field = amount.closest('.field');
     if (!field) return;
 
-    const preview = document.createElement('div');
+    const label = field.previousElementSibling;
+    if (!label || label.tagName !== 'LABEL') return;
+
+    label.classList.add('amount-label-row');
+
+    const preview = document.createElement('span');
     preview.id = 'amountUsdPreview';
     preview.textContent = '';
-    field.insertAdjacentElement('afterend', preview);
+    label.appendChild(preview);
 
     const update = () => {
       const php = Number(String(amount.value || '').replace(/,/g, '').trim());
