@@ -48,6 +48,15 @@
 #todayView .sync-pill .dot.bad{box-shadow:0 0 10px rgba(255,93,102,.6)}
 #reportsView .tabs{margin-top:0}
 
+
+/* Inline cloud reconnect, never a full-screen modal. */
+.cloud-connect[hidden]{display:none!important}
+.cloud-connect{padding-top:13px;margin-top:13px;border-top:1px solid var(--line)}
+.cloud-connect label{color:#b8cede;font-size:12px;font-weight:700;margin-bottom:8px}
+.cloud-connect-row{display:flex;flex-wrap:wrap;gap:8px}
+.cloud-connect-row input{min-width:155px;flex:1;font-size:14px}
+.cloud-connect-row button{flex:0 0 auto;font-size:12px;color:#fff;border-color:#118cf2;background:linear-gradient(100deg,#159eff,#0876e6)}
+.cloud-connect-error{margin:7px 0 0!important;color:#ff8791!important;font-size:11px!important;min-height:0}
 </style>
 </head>
 <body>
@@ -59,7 +68,15 @@
 <div class="head"><h2>Today’s Expenses</h2><span id="items">0 items</span></div><div id="todayList" class="list"></div>
 </section>
 <section id="reportsView" class="view"><div id="periods" class="tabs"><button class="on" data-p="daily">Daily</button><button data-p="weekly">Weekly</button><button data-p="monthly">Monthly</button><button data-p="all">All</button></div><div id="allActions" class="bulk-actions" hidden><button id="deleteAll" class="delete-all" type="button">Delete All</button></div><div id="reports" class="list"></div><div id="detail" class="card detail" style="margin-top:12px"></div></section>
-<section id="settingsView" class="view"><div class="settings"><div class="set"><h3>Cloud Sync</h3><p id="cloudInfo">Waiting for connection…</p><div class="setline"><button id="syncNow" class="mini">Sync Now</button></div></div><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
+<section id="settingsView" class="view"><div class="settings"><div class="set"><h3>Cloud Sync</h3><p id="cloudInfo">Waiting for connection…</p><div class="setline"><button id="syncNow" class="mini" type="button">Sync Now</button></div>
+<div id="cloudConnectBox" class="cloud-connect" hidden>
+  <label for="cloudKeyField">Cloud Sync Key</label>
+  <div class="cloud-connect-row">
+    <input id="cloudKeyField" type="password" autocomplete="off" placeholder="Enter your existing key">
+    <button id="connectCloudBtn" class="mini" type="button">Connect & Sync</button>
+  </div>
+  <p id="cloudKeyError" class="cloud-connect-error" role="status" aria-live="polite"></p>
+</div></div><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
 </main>
 <nav class="nav"><button class="on" data-v="today"><b>⌂</b>Today</button><button data-v="reports"><b>▥</b>Reports</button><button data-v="settings"><b>⚙</b>Settings</button></nav>
 <div id="toast" class="toast"><b>✓</b><span id="toastText"></span><button id="undo">UNDO</button></div>
@@ -78,11 +95,43 @@
 <script>
 (()=>{'use strict';
 const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1',FALLBACK=.017;
-let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc.rate)||FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,isSavingEdit=false;
+let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc.rate)||FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,isSavingEdit=false,cloudKeyInvalid=false;
 const $=id=>document.getElementById(id),money=n=>(Number(n)||0).toLocaleString('en-PH',{maximumFractionDigits:2}),dol=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}}function write(k,v){localStorage.setItem(k,JSON.stringify(v))}function dayKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function fromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}function fd(k,o={day:'numeric',month:'long',year:'numeric'}){return fromKey(k).toLocaleDateString('en-PH',o)}function dn(k){return fromKey(k).toLocaleDateString('en-PH',{weekday:'long'})}function tm(v){return new Date(v).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}function sum(a){return a.reduce((s,x)=>s+(Number(x.amount)||0),0)}function parseAmount(v){return Number(String(v).replace(/,/g,'').trim())}function authKey(){return localStorage.getItem(KEY)||''}function save(){write(CACHE,tx);write(PENDING,pending);write(SET,settings)}
-function setStatus(kind,text){$('syncDot').className='dot'+(kind?' '+kind:'');$('syncText').textContent=text;$('cloudInfo').textContent=text}
-async function api(method='GET',body=null,query=''){const key=authKey();if(!key)throw Object.assign(new Error('NO_KEY'),{code:401});const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);const opt={method,signal:controller.signal,headers:{'x-mx-sync-key':key}};if(body){opt.headers['content-type']='application/json';opt.body=JSON.stringify(body)}try{const r=await fetch(API+query,opt);let data={};try{data=await r.json()}catch{}if(r.status===401)throw Object.assign(new Error('Incorrect Sync Key'),{code:401});if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);return data}finally{clearTimeout(timer)}}
+function updateSyncButton(){
+ const connected=Boolean(authKey())&&!cloudKeyInvalid;
+ $('syncNow').textContent=connected?'Sync Now':'Connect Cloud';
+}
+function showCloudConnection(){
+ $('cloudConnectBox').hidden=false;
+ $('cloudKeyError').textContent='';
+ $('cloudKeyField').focus();
+}
+function setStatus(kind,text){
+ $('syncDot').className='dot'+(kind?' '+kind:'');
+ $('syncText').textContent=text;
+ $('cloudInfo').textContent=text;
+ updateSyncButton();
+}
+async function connectCloud(){
+ const key=$('cloudKeyField').value.trim();
+ if(key.length<6){$('cloudKeyError').textContent='Enter your existing Sync Key.';return}
+ const button=$('connectCloudBtn');
+ button.disabled=true;
+ $('cloudKeyError').textContent='';
+ try{
+  // Verify before saving; never overwrite a valid key with an unverified value.
+  await api('GET',null,'',key);
+  localStorage.setItem(KEY,key);
+  cloudKeyInvalid=false;
+  $('cloudKeyField').value='';
+  $('cloudConnectBox').hidden=true;
+  await syncAll(true);
+ }catch(err){
+  $('cloudKeyError').textContent=err.code===401?'Incorrect Sync Key. Try again.':'Could not verify the key. Check your connection and retry.';
+ }finally{button.disabled=false;updateSyncButton()}
+}
+async function api(method='GET',body=null,query='',keyOverride=null){const key=keyOverride??authKey();if(!key)throw Object.assign(new Error('NO_KEY'),{code:401});const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);const opt={method,signal:controller.signal,headers:{'x-mx-sync-key':key}};if(body){opt.headers['content-type']='application/json';opt.body=JSON.stringify(body)}try{const r=await fetch(API+query,opt);let data={};try{data=await r.json()}catch{}if(r.status===401)throw Object.assign(new Error('Incorrect Sync Key'),{code:401});if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);return data}finally{clearTimeout(timer)}}
 function normalized(rows){return (rows||[]).map(x=>({id:Number(x.id),amount:Number(x.amount),description:String(x.description||''),created_at:String(x.created_at||new Date().toISOString()),local_date:String(x.local_date||dayKey()),client_id:String(x.client_id||'')}))}
 
 async function syncPending(){if(!pending.length)return;const keep=[];for(const item of pending){try{await api('POST',item)}catch(e){if(e.code===401)throw e;keep.push(item)}}pending=keep;write(PENDING,pending)}
@@ -90,17 +139,17 @@ async function syncAll(showToast=false){
  if(isDeletingAll)return;
  if(syncInFlight)return syncInFlight;
  syncInFlight=(async()=>{
-  if(!authKey()){setStatus('bad','Local mode • cloud sync off');renderAll();if(showToast)toast('Cloud sync is unavailable without a saved key',false);return}
+  if(!authKey()||cloudKeyInvalid){setStatus('bad','Cloud disconnected • connect in Settings');renderAll();if(showToast)showCloudConnection();return}
   setStatus('',navigator.onLine?'Syncing with cloud…':'Offline — saved data');
   try{
    await syncPending();
    const d=await api();
    if(isDeletingAll)return;
-   tx=normalized(d.expenses);save();setStatus('ok',`Cloud synced • ${tx.length} saved expenses`);renderAll();
+   tx=normalized(d.expenses);cloudKeyInvalid=false;save();setStatus('ok',`Cloud synced • ${tx.length} saved expenses`);renderAll();
    if(showToast)toast('Cloud sync complete',false);
   }catch(e){
    if(isDeletingAll)return;
-   if(e.code===401){localStorage.removeItem(KEY);setStatus('bad','Local mode • cloud sync off');renderAll();if(showToast)toast('Cloud sync is unavailable without a saved key',false);return}
+   if(e.code===401){cloudKeyInvalid=true;setStatus('bad','Cloud key needs reconnection');renderAll();if(showToast)showCloudConnection();return}
    setStatus('bad',e.name==='AbortError'?'Cloud timeout — try Sync Now':'Cloud unavailable — showing saved data');
    renderAll();if(showToast)toast('Could not reach cloud',false);
   }
@@ -256,7 +305,7 @@ ${sections}<footer>MX Spend · Personal Expense Report · Amounts in Philippine 
  downloadFile(report,`MX-Spend-Report-${dayKey()}.html`,'text/html;charset=utf-8');
  toast('Expense report exported',false);
 }
-$('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(Number(b.dataset.del));if(b.dataset.edit)edit(Number(b.dataset.edit))});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('syncNow').onclick=()=>syncAll(true);$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{if(authKey())syncAll(false)});setInterval(()=>{const d=dayKey();if(d!==lastDay){lastDay=d;renderAll()}},30000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else setStatus('bad','Local mode • cloud sync off')
+$('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(Number(b.dataset.del));if(b.dataset.edit)edit(Number(b.dataset.edit))});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('syncNow').onclick=()=>{if(!authKey()||cloudKeyInvalid)showCloudConnection();else syncAll(true)};$('connectCloudBtn').onclick=connectCloud;$('cloudKeyField').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();connectCloud()}});$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{if(authKey())syncAll(false)});setInterval(()=>{const d=dayKey();if(d!==lastDay){lastDay=d;renderAll()}},30000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
 })();
 </script>
 </body>
