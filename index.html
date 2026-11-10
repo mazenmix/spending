@@ -15,6 +15,23 @@
 :root{color-scheme:dark;--bg:#02070c;--panel:#08131e;--line:#183047;--txt:#f6f9fc;--mut:#8ea3b8;--blue:#22aaff;--green:#29e4ad;--red:#ff5d66;--orange:#ffad42}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -10%,#10253a 0,#050c14 35%,#02070c 75%);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{padding:env(safe-area-inset-top) 0 calc(78px + env(safe-area-inset-bottom))}button,input{font:inherit}.app{width:min(100%,560px);margin:auto;padding:16px}.view{display:none}.view.on{display:block}.top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.brand{font-size:29px;font-weight:850;letter-spacing:-1px}.brand b{color:var(--blue)}.sub{font-size:12px;color:var(--mut)}.gear,.mini{border:1px solid var(--line);background:#0b1824;color:#c2d4e5;border-radius:13px}.gear{width:42px;height:42px}.card,.date{border:1px solid var(--line);background:linear-gradient(180deg,rgba(12,28,43,.97),rgba(5,14,23,.98));border-radius:20px;box-shadow:0 18px 50px rgba(0,0,0,.35)}.date{padding:13px 15px;margin-bottom:12px;display:flex;align-items:center;gap:12px}.date strong{display:block}.date span{font-size:12px;color:var(--mut)}.pill{margin-left:auto;border:1px solid #233c52;background:#101f2d;border-radius:999px;padding:7px 11px;font-size:11px}.sync{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:10px;margin-top:4px}.dot{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px currentColor}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.card{padding:18px;margin-bottom:12px}.ey{text-align:center;color:#b8c9d9;font-size:13px}.total{text-align:center;color:var(--blue);font-size:50px;font-weight:900;line-height:1;margin:8px 0 4px;letter-spacing:-2px}.total small{font-size:22px}.usd{text-align:center;color:var(--green);font-size:14px;font-weight:700}.rate{text-align:center;color:var(--mut);font-size:10px;margin-top:4px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.stat{border:1px solid #152b3e;background:#06111b;border-radius:14px;padding:11px}.stat span{display:block;color:var(--mut);font-size:10px}.stat b{font-size:14px}.stat:last-child b{color:var(--green)}label{display:block;color:#c6d6e4;font-size:12px;margin:0 0 7px}.field{display:flex;align-items:center;border:1px solid #244159;background:#050d15;border-radius:16px;padding:0 14px;margin-bottom:12px}.field:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(34,170,255,.1)}.field i{font-style:normal;font-size:24px;font-weight:800;color:#9cb3c8}.field input{width:100%;border:0;outline:0;background:transparent;color:#fff;height:61px;padding:0 10px;font-size:31px;font-weight:850}.field.text input{height:55px;padding-left:0;font-size:17px;font-weight:650}.add,.share{width:100%;border:0;border-radius:15px;padding:16px;color:#fff;font-weight:850;background:linear-gradient(90deg,#21b4ff,#0877ff)}.add:disabled{opacity:.55}.head{display:flex;justify-content:space-between;align-items:center;margin:18px 2px 10px}.head h2{margin:0;font-size:20px}.head span{color:var(--mut);font-size:12px}.list{display:grid;gap:9px}.row{display:grid;grid-template-columns:40px 1fr auto auto;gap:10px;align-items:center;border:1px solid var(--line);background:#08141f;border-radius:16px;padding:12px}.bubble{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:rgba(34,170,255,.12);color:var(--blue);font-weight:850}.desc{font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.time,.smallusd{color:var(--mut);font-size:10px}.pending{color:var(--orange)}.amt{text-align:right;font-weight:850;white-space:nowrap}.actions{display:flex;gap:5px}.actions button{width:32px;height:32px;padding:0}.del{color:var(--red)}.empty{text-align:center;color:var(--mut);border:1px dashed #1b344a;border-radius:16px;padding:28px 15px}.empty b{display:block;color:#dbe7f2;margin-bottom:4px}.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;border:1px solid var(--line);background:#07121c;border-radius:15px;padding:5px;margin-bottom:12px}.tabs button{border:0;background:transparent;color:#a9bdcf;padding:10px 3px;border-radius:11px;font-size:11px}.tabs .on{color:white;background:linear-gradient(#169fff,#0877ff);font-weight:800}.reportrow{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);background:#08141f;border-radius:15px;padding:12px 14px;color:white;text-align:left;width:100%}.reportrow.sel{border-color:#168fd8}.reportrow span{color:var(--mut);font-size:10px}.reportrow .rt{text-align:right;color:#65d5ff}.detail h3{margin:0 0 4px}.detailentry{display:grid;grid-template-columns:64px 1fr auto;gap:8px;padding:9px 0;border-bottom:1px solid #13283b;font-size:13px}.detailentry:last-child{border:0}.reportbuttons{display:grid;grid-template-columns:1fr 52px;gap:8px;margin-top:14px}.download{border:1px solid #294760;background:#0b1925;color:#d8e6f2;border-radius:14px}.settings{display:grid;gap:12px}.set{border:1px solid var(--line);background:#08141f;border-radius:17px;padding:16px}.set h3{margin:0 0 5px}.set p{margin:0 0 12px;color:var(--mut);font-size:12px;line-height:1.45}.setline{display:flex;gap:8px}.set input{flex:1;min-width:0;height:44px;border:1px solid #233e55;background:#050d15;color:white;border-radius:12px;padding:0 11px}.set button{height:44px;padding:0 12px}.nav{position:fixed;z-index:20;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,560px);display:grid;grid-template-columns:repeat(3,1fr);background:rgba(3,9,15,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom))}.nav button{border:0;background:transparent;color:#7f95a9;font-size:10px;padding:5px}.nav b{display:block;font-size:20px;margin-bottom:2px}.nav .on{color:var(--blue)}.toast{position:fixed;z-index:40;left:50%;bottom:calc(82px + env(safe-area-inset-bottom));transform:translate(-50%,25px);width:min(calc(100% - 28px),520px);display:flex;align-items:center;gap:9px;border:1px solid rgba(41,228,173,.25);background:rgba(5,31,27,.97);border-radius:15px;padding:12px 14px;opacity:0;pointer-events:none;transition:.2s}.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}.toast span{flex:1}.toast button{border:0;background:transparent;color:#73dfff;font-weight:800}.modal{position:fixed;z-index:50;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(12px);display:none;place-items:center;padding:20px}.modal.on{display:grid}.modalbox{width:min(100%,430px);border:1px solid #25445e;background:linear-gradient(180deg,#0b1b29,#050c14);border-radius:23px;padding:22px;box-shadow:0 30px 90px #000}.modalbox h2{margin:0 0 6px}.modalbox p{margin:0 0 16px;color:var(--mut);font-size:13px;line-height:1.5}.modalbox input{width:100%;height:54px;border:1px solid #28465e;background:#030a11;color:#fff;border-radius:14px;padding:0 14px;margin-bottom:10px;font-size:18px}.error{min-height:18px;color:#ff7f86;font-size:11px;margin-bottom:8px}#todayView .brand,#todayView .sub,#todayView .stats{display:none}@media(min-width:680px){body{padding-top:20px}}
 .reporttop{justify-content:flex-end;margin:4px 0 10px}.bulk-actions{display:flex;justify-content:flex-end;margin:-2px 2px 12px}.bulk-actions[hidden]{display:none!important}.delete-all{border:1px solid rgba(255,95,113,.55);background:rgba(185,39,62,.15);color:#ff7886;border-radius:11px;padding:10px 15px;font-size:12px;font-weight:800;cursor:pointer}.delete-all:disabled{opacity:.55;cursor:wait}
+
+#settingsView .settings{margin-top:4px}
+.export-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.export-actions .mini{flex:1;min-width:130px;font-weight:750}
+.export-primary{border-color:#179df1!important;background:linear-gradient(100deg,#19aaff,#0979ec)!important;color:#fff!important}
+.editbox{width:min(100%,430px)}
+.editbox h2{font-size:22px;margin-bottom:5px}
+.editbox .edit-subtitle{font-size:12px;color:var(--mut);margin-bottom:20px}
+.editbox label{font-size:12px;font-weight:700;margin:14px 0 7px;color:#b8cddd}
+.editbox .edit-input{height:51px;width:100%;background:#06121d;color:#fff;border:1px solid #294960;border-radius:12px;padding:0 13px;font-size:17px;outline:none}
+.editbox .edit-input:focus{border-color:#20a5ff;box-shadow:0 0 0 3px rgba(32,165,255,.14)}
+.editbox .edit-buttons{display:grid;grid-template-columns:1fr 1.3fr;gap:10px;margin-top:17px}
+.editbox .edit-buttons button{border-radius:12px;height:47px;font-weight:800}
+.editbox .edit-cancel{border:1px solid #29455b;background:#0c1d2b;color:#c8dced}
+.editbox .edit-save{border:0;color:#fff;background:linear-gradient(100deg,#25b6ff,#0978ff)}
+.editbox .edit-save:disabled{opacity:.55}
+.editbox .error{margin-top:10px}
 </style>
 </head>
 <body>
@@ -23,19 +40,30 @@
 <div class="top"><div><div class="brand"><b>MX</b> Spend</div><div class="sub">Daily Expense Tracker</div><div class="sync"><i id="syncDot" class="dot"></i><span id="syncText">Starting…</span></div></div><button class="gear" data-go="settings">⚙</button></div>
 <div class="date"><div>▣</div><div><strong>Today</strong><span id="dateText"></span></div><div id="dayText" class="pill"></div></div>
 <div class="card"><div class="ey">Total Spent Today</div><div class="total"><small>₱</small><span id="total">0</span></div><div id="usd" class="usd">≈ $0.00 USD</div><div id="rate" class="rate">Loading exchange rate…</div><div class="stats"><div class="stat"><span>Transactions</span><b id="count">0</b></div><div class="stat"><span>Remaining budget</span><b id="remain">Not set</b></div></div></div>
-<form id="form" class="card"><label>How much did you spend?</label><div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div><label>What was it for?</label><div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder="e.g. Dinner with friends"></div><button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button></form>
+<form id="form" class="card"><label>How much did you spend?</label><div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div><label>What was it for?</label><div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder=""></div><button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button></form>
 <div class="head"><h2>Today’s Expenses</h2><span id="items">0 items</span></div><div id="todayList" class="list"></div>
 </section>
 <section id="reportsView" class="view"><div class="top reporttop"><button id="shareTop" class="gear" type="button">↗</button></div><div id="periods" class="tabs"><button class="on" data-p="daily">Daily</button><button data-p="weekly">Weekly</button><button data-p="monthly">Monthly</button><button data-p="all">All</button></div><div id="allActions" class="bulk-actions" hidden><button id="deleteAll" class="delete-all" type="button">Delete All</button></div><div id="reports" class="list"></div><div id="detail" class="card detail" style="margin-top:12px"></div></section>
-<section id="settingsView" class="view"><div class="top"><div><div class="brand"><b>MX</b> Spend</div><div class="sub">Settings</div></div></div><div class="settings"><div class="set"><h3>Cloud Sync</h3><p id="cloudInfo">Waiting for connection…</p><div class="setline"><button id="syncNow" class="mini">Sync Now</button><button id="changeKey" class="mini">Change Sync Key</button></div></div><div class="set"><h3>Daily budget</h3><p>Optional. Budget stays on this device; expenses sync across devices.</p><div class="setline"><input id="budget" inputmode="decimal" placeholder="e.g. 5000"><button id="saveBudget" class="mini">Save</button></div></div><div class="set"><h3>PHP → USD rate</h3><p id="rateInfo">Checking live rate…</p><button id="refreshRate" class="mini">Refresh rate</button></div><div class="set"><h3>Cloud backup</h3><button id="backup" class="mini">Export Backup</button></div></div></section>
+<section id="settingsView" class="view"><div class="settings"><div class="set"><h3>Cloud Sync</h3><p id="cloudInfo">Waiting for connection…</p><div class="setline"><button id="syncNow" class="mini">Sync Now</button><button id="changeKey" class="mini">Change Sync Key</button></div></div><div class="set"><h3>Daily budget</h3><p>Optional. Budget stays on this device; expenses sync across devices.</p><div class="setline"><input id="budget" inputmode="decimal" placeholder="e.g. 5000"><button id="saveBudget" class="mini">Save</button></div></div><div class="set"><h3>PHP → USD rate</h3><p id="rateInfo">Checking live rate…</p><button id="refreshRate" class="mini">Refresh rate</button></div><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
 </main>
 <nav class="nav"><button class="on" data-v="today"><b>⌂</b>Today</button><button data-v="reports"><b>▥</b>Reports</button><button data-v="settings"><b>⚙</b>Settings</button></nav>
 <div id="toast" class="toast"><b>✓</b><span id="toastText"></span><button id="undo">UNDO</button></div>
 <div id="login" class="modal"><div class="modalbox"><h2>MX Cloud Sync</h2><p>Enter your private Sync Key once on this device.</p><input id="keyInput" type="password" autocomplete="current-password" placeholder="Sync Key"><div id="keyError" class="error"></div><button id="unlock" class="add">UNLOCK & SYNC</button></div></div>
+<div id="editModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+<div class="modalbox editbox">
+<form id="editForm">
+<h2 id="editTitle">Edit Expense</h2><p class="edit-subtitle">Update the amount and description.</p>
+<label for="editAmount">Amount (PHP)</label><input id="editAmount" class="edit-input" inputmode="decimal" autocomplete="off" required>
+<label for="editDescription">Description</label><input id="editDescription" class="edit-input" maxlength="120" autocomplete="off" required>
+<div id="editError" class="error" aria-live="polite"></div>
+<div class="edit-buttons"><button id="editCancel" class="edit-cancel" type="button">Cancel</button><button id="editSave" class="edit-save" type="submit">Save Changes</button></div>
+</form>
+</div>
+</div>
 <script>
 (()=>{'use strict';
 const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1',FALLBACK=.017;
-let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc.rate)||FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null;
+let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc.rate)||FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,isSavingEdit=false;
 const $=id=>document.getElementById(id),money=n=>(Number(n)||0).toLocaleString('en-PH',{maximumFractionDigits:2}),dol=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}}function write(k,v){localStorage.setItem(k,JSON.stringify(v))}function dayKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function fromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}function fd(k,o={day:'numeric',month:'long',year:'numeric'}){return fromKey(k).toLocaleDateString('en-PH',o)}function dn(k){return fromKey(k).toLocaleDateString('en-PH',{weekday:'long'})}function tm(v){return new Date(v).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}function sum(a){return a.reduce((s,x)=>s+(Number(x.amount)||0),0)}function parseAmount(v){return Number(String(v).replace(/,/g,'').trim())}function authKey(){return localStorage.getItem(KEY)||''}function save(){write(CACHE,tx);write(PENDING,pending);write(SET,settings)}
 function setStatus(kind,text){$('syncDot').className='dot'+(kind?' '+kind:'');$('syncText').textContent=text;$('cloudInfo').textContent=text}
@@ -94,10 +122,96 @@ async function deleteAllExpenses(){
  }
 }
 async function del(id){const x=tx.find(v=>v.id===id);if(!x||!confirm(`Delete ₱${money(x.amount)} — ${x.description}?`))return;try{await api('DELETE',null,`?id=${id}`);tx=tx.filter(v=>v.id!==id);deleted=x;save();renderAll();toast('Expense deleted',true)}catch{toast('Could not delete expense',false)}}async function undoDelete(){if(!deleted)return;const item={amount:deleted.amount,description:deleted.description,created_at:deleted.created_at,local_date:deleted.local_date,client_id:deleted.client_id||crypto.randomUUID()};try{const d=await api('POST',item);if(d.expense)tx.unshift(normalized([d.expense])[0]);deleted=null;save();renderAll();hideToast()}catch{toast('Undo failed',false)}}
-async function edit(id){const x=tx.find(v=>v.id===id);if(!x)return;const a=prompt('Amount in PHP:',String(x.amount));if(a===null)return;const amount=parseAmount(a);if(!(amount>0))return;const description=prompt('What was it for?',x.description);if(description===null||!description.trim())return;try{const d=await api('PATCH',{id,amount,description:description.trim()});const i=tx.findIndex(v=>v.id===id);if(i>-1)tx[i]=normalized([d.expense])[0];save();renderAll();toast('Expense updated',false)}catch{toast('Could not update expense',false)}}
+function edit(id){
+ if(isDeletingAll||isSavingEdit)return;
+ const x=tx.find(v=>v.id===id);if(!x)return;
+ editExpenseId=id;
+ $('editAmount').value=String(x.amount);
+ $('editDescription').value=x.description;
+ $('editError').textContent='';
+ $('editModal').classList.add('on');
+ $('editAmount').focus();$('editAmount').select();
+}
+function closeEdit(){
+ if(isSavingEdit)return;
+ $('editModal').classList.remove('on');
+ editExpenseId=null;$('editError').textContent='';
+}
+async function saveEditedExpense(e){
+ e.preventDefault();
+ if(isSavingEdit||isDeletingAll||!Number.isInteger(editExpenseId))return;
+ const id=editExpenseId;
+ const amount=parseAmount($('editAmount').value);
+ const description=$('editDescription').value.trim();
+ if(!Number.isFinite(amount)||amount<=0){$('editError').textContent='Enter a valid amount greater than zero.';$('editAmount').focus();return}
+ if(!description){$('editError').textContent='Enter the expense description.';$('editDescription').focus();return}
+ isSavingEdit=true;$('editSave').disabled=true;$('editCancel').disabled=true;$('editError').textContent='';
+ try{
+  const d=await api('PATCH',{id,amount,description});
+  const i=tx.findIndex(v=>v.id===id);
+  if(i>=0&&d.expense)tx[i]=normalized([d.expense])[0];
+  save();renderAll();
+  $('editModal').classList.remove('on');editExpenseId=null;
+  toast('Expense updated',false);
+ }catch(err){
+  $('editError').textContent=err.code===401?'Sync Key required. Reconnect in Settings.':'Could not save changes. Please retry.';
+ }finally{isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false}
+}
 function toast(text,canUndo){clearTimeout(toastTimer);$('toastText').textContent=text;$('undo').style.display=canUndo?'block':'none';$('toast').classList.add('on');toastTimer=setTimeout(hideToast,4500)}function hideToast(){$('toast').classList.remove('on')}
 async function refreshRate(show=false){try{const r=await fetch('https://api.frankfurter.app/latest?from=PHP&to=USD',{cache:'no-store'}),j=await r.json(),v=Number(j?.rates?.USD);if(v>0){rate=v;rc={rate:v,at:Date.now()};write(RATE,rc);renderAll();if(show)toast('Exchange rate updated',false)}}catch{if(show)toast('Using cached exchange rate',false)}}function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$(v+'View').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));if(v==='reports')reports()}
-$('form').addEventListener('submit',addExpense);$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(Number(b.dataset.del));if(b.dataset.edit)edit(Number(b.dataset.edit))});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('shareTop').onclick=shareReport;$('saveBudget').onclick=()=>{const b=parseAmount($('budget').value);settings.budget=b>0?b:0;save();renderAll();toast('Budget saved',false)};$('refreshRate').onclick=()=>refreshRate(true);$('syncNow').onclick=()=>syncAll(true);$('changeKey').onclick=()=>{localStorage.removeItem(KEY);openLogin()};$('unlock').onclick=unlock;$('keyInput').addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});$('backup').onclick=()=>{const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({exported_at:new Date().toISOString(),expenses:tx},null,2)],{type:'application/json'}));a.href=url;a.download=`MX-Spend-Backup-${dayKey()}.json`;a.click();URL.revokeObjectURL(url)};window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{if(authKey())syncAll(false)});setInterval(()=>{const d=dayKey();if(d!==lastDay){lastDay=d;renderAll()}},30000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else{setStatus('bad','Sync key required');openLogin()}
+function downloadFile(content,filename,mime){
+ const url=URL.createObjectURL(new Blob([content],{type:mime}));
+ const a=document.createElement('a');a.href=url;a.download=filename;
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+function exportJsonBackup(){
+ downloadFile(JSON.stringify({exported_at:new Date().toISOString(),expenses:tx},null,2),`MX-Spend-Backup-${dayKey()}.json`,'application/json;charset=utf-8');
+}
+function exportStyledReport(){
+ const items=[...tx,...pending.map(x=>({...x,pending:true}))];
+ if(!items.length){toast('No expenses to export',false);return}
+ const grouped={};
+ for(const x of items)(grouped[x.local_date]??=[]).push(x);
+ const keys=Object.keys(grouped).sort().reverse();
+ const sections=keys.map(k=>{
+  const entries=grouped[k].slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+  const total=sum(entries);
+  const rows=entries.map(x=>`<tr><td class="name">${esc(x.description)}${x.pending?'<span class="pending-tag">Pending sync</span>':''}</td><td class="time">${tm(x.created_at)}</td><td class="amount">₱${money(x.amount)}</td></tr>`).join('');
+  return `<section class="day"><div class="day-header"><div><div class="weekday">${dn(k)}</div><h2>${fd(k)}</h2><div class="count">${entries.length} ${entries.length===1?'expense':'expenses'}</div></div><div class="day-total"><span>DAY TOTAL</span><strong>₱${money(total)}</strong></div></div><table><tbody>${rows}</tbody></table></section>`;
+ }).join('');
+ const total=sum(items),dateLabel=new Date().toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'});
+ const report=`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MX Spend — Expense Report</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#ecf2f8;color:#17283b;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.wrap{max-width:900px;margin:25px auto;padding:0 18px 35px}
+.toolbar{text-align:right;padding:8px 0 14px}.toolbar button{padding:10px 20px;border:0;border-radius:9px;background:#087de9;color:white;font-weight:750;cursor:pointer}
+.hero{background:linear-gradient(125deg,#081c2e,#0b385c);color:#fff;padding:30px;border-radius:20px;box-shadow:0 12px 28px #0a294020}
+.logo{font-size:25px;letter-spacing:-.6px;font-weight:900}.logo b{color:#30b5ff}
+.eyebrow{margin-top:7px;color:#b9d5ea;font-size:12px;letter-spacing:.6px}
+.stats{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;border-top:1px solid #ffffff30;padding-top:18px}
+.stat span{display:block;color:#a4bfd4;font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+.stat strong{display:block;margin-top:2px;font-size:23px;color:#fff}
+.day{margin-top:18px;background:white;border:1px solid #dfebf4;border-radius:16px;overflow:hidden;break-inside:avoid;box-shadow:0 4px 20px #18354a0a}
+.day-header{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#f5f9fc;padding:18px 22px;border-bottom:1px solid #e1ebf3}
+.weekday{color:#0b85d9;font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+h2{font-size:19px;margin:1px 0 0}.count{font-size:11px;color:#72869b}
+.day-total{text-align:right}.day-total span{display:block;font-size:10px;color:#72869b;letter-spacing:.6px;font-weight:800}.day-total strong{font-size:19px;color:#047dbd;white-space:nowrap}
+table{border-collapse:collapse;width:100%}td{padding:13px 22px;border-bottom:1px solid #edf2f6}tr:last-child td{border-bottom:0}.name{font-weight:650;overflow-wrap:anywhere}.time{text-align:right;color:#71849a;white-space:nowrap;font-size:12px;width:100px}.amount{text-align:right;font-weight:850;white-space:nowrap;width:130px}
+.pending-tag{display:block;color:#bd7515;font-size:10px;font-weight:500}footer{padding:20px 4px;color:#788ca1;font-size:11px;text-align:center}
+@media(max-width:520px){.hero{padding:22px}.day-header{padding:15px}td{padding:11px 12px}.time{width:65px;font-size:10px}.amount{width:100px}.day-total strong{font-size:16px}}
+@media print{body{background:#fff}.wrap{max-width:none;margin:0;padding:0}.toolbar{display:none}.hero{border-radius:0;box-shadow:none;print-color-adjust:exact;-webkit-print-color-adjust:exact}.day{box-shadow:none;break-inside:avoid}footer{page-break-inside:avoid}}
+</style></head><body><main class="wrap"><div class="toolbar"><button onclick="window.print()">Print / Save as PDF</button></div>
+<header class="hero"><div class="logo"><b>MX</b> Spend</div><div class="eyebrow">COMPLETE EXPENSE REPORT · ${dateLabel}</div>
+<div class="stats"><div class="stat"><span>Total Expenses</span><strong>₱${money(total)}</strong></div><div class="stat"><span>USD Estimate</span><strong>${dol(total*rate)}</strong></div><div class="stat"><span>Transactions</span><strong>${items.length}</strong></div><div class="stat"><span>Days</span><strong>${keys.length}</strong></div></div></header>
+${sections}<footer>MX Spend · Personal Expense Report · Amounts in Philippine pesos (PHP). USD values are estimates.</footer>
+</main></body></html>`;
+ downloadFile(report,`MX-Spend-Report-${dayKey()}.html`,'text/html;charset=utf-8');
+ toast('Expense report exported',false);
+}
+$('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(Number(b.dataset.del));if(b.dataset.edit)edit(Number(b.dataset.edit))});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('shareTop').onclick=shareReport;$('saveBudget').onclick=()=>{const b=parseAmount($('budget').value);settings.budget=b>0?b:0;save();renderAll();toast('Budget saved',false)};$('refreshRate').onclick=()=>refreshRate(true);$('syncNow').onclick=()=>syncAll(true);$('changeKey').onclick=()=>{localStorage.removeItem(KEY);openLogin()};$('unlock').onclick=unlock;$('keyInput').addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{if(authKey())syncAll(false)});setInterval(()=>{const d=dayKey();if(d!==lastDay){lastDay=d;renderAll()}},30000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else{setStatus('bad','Sync key required');openLogin()}
 })();
 </script>
 </body>
