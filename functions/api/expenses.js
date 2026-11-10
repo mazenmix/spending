@@ -94,6 +94,14 @@ export async function onRequest(context) {
 
     if (method === 'DELETE') {
       const url = new URL(request.url);
+      if (url.searchParams.get('all') === '1') {
+        const body = await request.json().catch(() => null);
+        if (body?.confirm !== 'DELETE_ALL') {
+          return json({ ok: false, error: 'Explicit deletion confirmation required' }, 400);
+        }
+        const result = await env.DB.prepare('DELETE FROM expenses').run();
+        return json({ ok: true, deleted: result?.meta?.changes || 0 });
+      }
       const id = Number(url.searchParams.get('id'));
       if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400);
       await env.DB.prepare('DELETE FROM expenses WHERE id=?1').bind(id).run();
