@@ -39,7 +39,7 @@ export async function onRequest(context) {
   const cleanForm = `<form id="form" class="card">
 <label class="amount-label-row"><span id="amountUsdPreview">≈ $0.00 USD</span></label>
 <div class="field"><i>₱</i><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0"></div>
-<div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder="e.g. Dinner with friends"></div>
+<div class="field text"><input id="desc" maxlength="120" autocomplete="off" placeholder=""></div>
 <button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button>
 </form>`;
 
