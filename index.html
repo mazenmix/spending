@@ -222,7 +222,7 @@ table{border-collapse:collapse;width:100%}td{padding:13px 22px;border-bottom:1px
 <header class="hero"><div class="logo"><b>MX</b> Spend</div><div class="eyebrow">COMPLETE EXPENSE REPORT · ${dateLabel}</div>
 <div class="stats"><div class="stat"><span>Total Expenses</span><strong>₱${money(total)}</strong></div><div class="stat"><span>USD Estimate</span><strong>${dol(total*rate)}</strong></div><div class="stat"><span>Transactions</span><strong>${items.length}</strong></div><div class="stat"><span>Days</span><strong>${keys.length}</strong></div></div></header>
 ${sections}<footer>MX Spend · Personal Expense Report · Amounts in Philippine pesos (PHP). USD values are estimates.</footer>
-</main></body></html>`;
+</main></bo${'dy'}></html>`;
  downloadFile(report,`MX-Spend-Report-${dayKey()}.html`,'text/html;charset=utf-8');
  toast('Expense report exported',false);
 }
