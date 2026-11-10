@@ -45,7 +45,14 @@ export async function onRequest(context) {
 
   html = html.replace(/<form id="form" class="card">[\s\S]*?<\/form>/, cleanForm);
   html = html.replace('</head>', uiOverrides + '\n</head>');
-  html = html.replace('</body>', '<script src="/live-preview.js?v=4" defer></script>\n</body>');
+  // The exported report contains its own HTML template inside the inline JS.
+  // Only insert the preview script before the LAST closing body tag of the page.
+  const closingBody = html.lastIndexOf('</body>');
+  if (closingBody !== -1) {
+    html = html.slice(0, closingBody) +
+      '<script src="/live-preview.js?v=5" defer></script>\n' +
+      html.slice(closingBody);
+  }
 
   const headers = new Headers(response.headers);
   headers.delete('content-length');
