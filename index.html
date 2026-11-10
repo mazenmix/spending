@@ -113,7 +113,37 @@ function today(){const k=dayKey(),list=todayCombined(),total=sum(list),b=Number(
 function weekKey(k){const d=fromKey(k),n=(d.getDay()+6)%7;d.setDate(d.getDate()-n);return dayKey(d)}function groupFor(p){const g={};for(const x of tx){const k=p==='daily'?x.local_date:p==='weekly'?weekKey(x.local_date):p==='monthly'?x.local_date.slice(0,7):'all';(g[k]??=[]).push(x)}return g}function groupLabel(k,p){if(p==='daily')return{a:fd(k),b:dn(k)};if(p==='weekly')return{a:`Week of ${fd(k,{day:'numeric',month:'short',year:'numeric'})}`,b:'7-day period'};if(p==='monthly'){const d=new Date(k+'-01T12:00:00');return{a:d.toLocaleDateString('en-PH',{month:'long',year:'numeric'}),b:'Monthly total'}}return{a:'All History',b:`${tx.length} transactions`}}
 function reports(){$('allActions').hidden=period!=='all';const g=groupFor(period),keys=Object.keys(g).sort().reverse();if(!selected||!g[selected])selected=keys[0]||null;$('reports').innerHTML=keys.length?keys.map(k=>{const l=groupLabel(k,period),total=sum(g[k]);return`<button class="reportrow ${k===selected?'sel':''}" data-r="${k}"><div><b>${esc(l.a)}</b><br><span>${esc(l.b)}</span></div><div class="rt"><b>₱${money(total)}</b><br><span>≈ $${dol(total*rate)} USD</span></div></button>`}).join(''):'<div class="empty"><b>No reports yet</b></div>';renderDetail(g)}
 function renderDetail(g=groupFor(period)){const list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)):[];if(!list.length){$('detail').innerHTML='<div class="empty">Select a report.</div>';return}const l=groupLabel(selected,period);$('detail').innerHTML=`<h3>${esc(l.a)}</h3><div class="smallusd">${list.length} transactions • Total ₱${money(sum(list))} • ≈ $${dol(sum(list)*rate)} USD</div><div style="margin-top:10px">${list.map(x=>`<div class="detailentry"><span>${tm(x.created_at)}</span><span>${esc(x.description)}</span><b>₱${money(x.amount)}</b></div>`).join('')}</div><div class="reportbuttons"><button id="shareReport" class="share">↗ SHARE REPORT (TEXT)</button><button id="downloadReport" class="download">⇩</button></div>`;$('shareReport').onclick=shareReport;$('downloadReport').onclick=downloadReport}
-function reportText(){const g=groupFor(period),list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)):[];if(!list.length)return'';const l=groupLabel(selected,period);return`MX SPEND REPORT\n${l.a}\n\n${list.map(x=>`${tm(x.created_at)} — ₱${money(x.amount)} — ${x.description}`).join('\n')}\n\n--------------------\nTOTAL: ₱${money(sum(list))}\n≈ $${dol(sum(list)*rate)} USD\nTRANSACTIONS: ${list.length}`}
+function reportText(){
+ const g=groupFor(period);
+ const list=selected&&g[selected]?[...g[selected]]:[];
+ if(!list.length)return'';
+ const label=groupLabel(selected,period);
+ const days={};
+ for(const item of list)(days[item.local_date]??=[]).push(item);
+ const dayKeys=Object.keys(days).sort().reverse();
+ const sections=dayKeys.map(k=>{
+  const entries=days[k].slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+  const lines=entries.map(x=>`${tm(x.created_at)}  |  ${x.description.replaceAll(String.fromCharCode(10),' ').replaceAll(String.fromCharCode(13),' ')}  |  ₱${money(x.amount)}`);
+  return `========================================
+${fd(k,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+========================================
+${lines.join(String.fromCharCode(10))}
+
+DAY TOTAL: ₱${money(sum(entries))}
+EXPENSES: ${entries.length}`;
+ });
+ return `MX SPEND REPORT
+${label.a}
+${dayKeys.length} ${dayKeys.length===1?'day':'days'} | ${list.length} ${list.length===1?'transaction':'transactions'}
+
+${sections.join(String.fromCharCode(10,10))}
+
+========================================
+GRAND TOTAL: ₱${money(sum(list))}
+≈ ${dol(sum(list)*rate)} USD
+TOTAL TRANSACTIONS: ${list.length}
+========================================`;
+}
 async function shareReport(){const text=reportText();if(!text)return;try{if(navigator.share)await navigator.share({title:'MX Spend Report',text});else{await navigator.clipboard.writeText(text);toast('Report copied',false)}}catch{}}
 function downloadReport(){const text=reportText();if(!text)return;const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));a.href=url;a.download=`MX-Spend-${selected||'report'}.txt`;a.click();URL.revokeObjectURL(url)}
 function renderAll(){today();reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
