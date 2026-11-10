@@ -84,6 +84,59 @@
 #todayList .actions .action-btn:active{transform:translateY(0) scale(.96)}
 #todayList .actions .action-btn:focus-visible{outline:2px solid #66c9ff;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){#todayList .actions .action-btn{transition:none}}
+
+/* Compact premium bottom navigation */
+.nav{
+  gap:6px;
+  padding:7px 12px calc(7px + env(safe-area-inset-bottom));
+  border-top:1px solid rgba(72,130,174,.25);
+  background:rgba(3,12,20,.96);
+}
+.nav button{
+  appearance:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  min-width:0;
+  min-height:57px;
+  padding:5px 6px;
+  border:1px solid transparent;
+  border-radius:13px;
+  font-size:11px;
+  line-height:1.2;
+  font-weight:600;
+  color:#8ea6bb;
+  cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,color .18s ease;
+}
+.nav .nav-icon{
+  width:31px;
+  height:29px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:transparent;
+  transition:background .18s ease,box-shadow .18s ease,color .18s ease;
+}
+.nav .nav-icon svg{display:block;width:21px;height:21px;pointer-events:none}
+.nav .nav-label{font-size:10px;letter-spacing:.12px}
+.nav button.on{
+  color:#6fcaff;
+  border-color:rgba(38,163,248,.15);
+  background:linear-gradient(180deg,rgba(19,65,100,.27),rgba(9,34,53,.18));
+}
+.nav button.on .nav-icon{
+  color:#61c5ff;
+  background:rgba(29,151,246,.13);
+  box-shadow:inset 0 0 0 1px rgba(44,168,255,.12);
+}
+.nav button:hover:not(.on){color:#d5edff;background:rgba(46,99,134,.12)}
+.nav button:focus-visible{outline:2px solid #4db8ff;outline-offset:-2px}
+@media(prefers-reduced-motion:reduce){.nav button,.nav .nav-icon{transition:none}}
+
 </style>
 </head>
 <body>
@@ -105,7 +158,20 @@
   <p id="cloudKeyError" class="cloud-connect-error" role="status" aria-live="polite"></p>
 </div></div><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
 </main>
-<nav class="nav"><button class="on" data-v="today"><b>⌂</b>Today</button><button data-v="reports"><b>▥</b>Reports</button><button data-v="settings"><b>⚙</b>Settings</button></nav>
+<nav class="nav" aria-label="Main navigation">
+<button type="button" class="on" data-v="today" aria-label="Today" aria-current="page">
+  <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-7h6v7"/></svg></span>
+  <span class="nav-label">Today</span>
+</button>
+<button type="button" data-v="reports" aria-label="Reports">
+  <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="11.5" width="4" height="8" rx="1"/><rect x="10" y="7.5" width="4" height="12" rx="1"/><rect x="16.5" y="3.5" width="4" height="16" rx="1"/></svg></span>
+  <span class="nav-label">Reports</span>
+</button>
+<button type="button" data-v="settings" aria-label="Settings">
+  <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.7 3.5h4.6l.6 2.1 1.8 1 2.1-.5 2.3 4-.9 1.6v2.1l.9 1.6-2.3 4-2.1-.5-1.8 1-.6 2.1H9.7l-.6-2.1-1.8-1-2.1.5-2.3-4 .9-1.6v-2.1l-.9-1.6 2.3-4 2.1.5 1.8-1z"/><circle cx="12" cy="12.5" r="3.15"/></svg></span>
+  <span class="nav-label">Settings</span>
+</button>
+</nav>
 <div id="toast" class="toast"><b>✓</b><span id="toastText"></span><button id="undo">UNDO</button></div>
 
 <div id="editModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
@@ -279,7 +345,7 @@ async function saveEditedExpense(e){
  }finally{isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false}
 }
 function toast(text,canUndo){clearTimeout(toastTimer);$('toastText').textContent=text;$('undo').style.display=canUndo?'block':'none';$('toast').classList.add('on');toastTimer=setTimeout(hideToast,4500)}function hideToast(){$('toast').classList.remove('on')}
-async function refreshRate(show=false){try{const r=await fetch('https://api.frankfurter.app/latest?from=PHP&to=USD',{cache:'no-store'}),j=await r.json(),v=Number(j?.rates?.USD);if(v>0){rate=v;rc={rate:v,at:Date.now()};write(RATE,rc);renderAll();if(show)toast('Exchange rate updated',false)}}catch{if(show)toast('Using cached exchange rate',false)}}function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$(v+'View').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));if(v==='reports')reports()}
+async function refreshRate(show=false){try{const r=await fetch('https://api.frankfurter.app/latest?from=PHP&to=USD',{cache:'no-store'}),j=await r.json(),v=Number(j?.rates?.USD);if(v>0){rate=v;rc={rate:v,at:Date.now()};write(RATE,rc);renderAll();if(show)toast('Exchange rate updated',false)}}catch{if(show)toast('Using cached exchange rate',false)}}function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$(v+'View').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>{const active=x.dataset.v===v;x.classList.toggle('on',active);if(active)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});if(v==='reports')reports()}
 function downloadFile(content,filename,mime){
  const url=URL.createObjectURL(new Blob([content],{type:mime}));
  const a=document.createElement('a');a.href=url;a.download=filename;
