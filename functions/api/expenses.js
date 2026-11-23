@@ -140,27 +140,26 @@ export async function onRequest(context) {
         return json({ ok: true, deleted: result?.meta?.changes || 0 });
       }
       const clientId=url.searchParams.get('client_id');
-      if(clientId){
-        if(clientId.length>80)return json({ok:false,error:'Invalid client ID'},400);
-        await env.DB.prepare('DELETE FROM expenses WHERE client_id=?1').bind(clientId).run();
-        return json({ok:true});
+      const id=Number(url.searchParams.get('id'));
+      if(clientId!==null&&(!clientId||clientId.length>80))return json({ok:false,error:'Invalid client ID'},400);
+      if(clientId===null&&(!Number.isSafeInteger(id)||id<=0))return json({ok:false,error:'Invalid id'},400);
+      const selector=clientId===null?'id=?1':'client_id=?1',key=clientId??id;
+      const body=request.headers.get('content-type')?.includes('application/json')?await request.json():null;
+      const expected=body?.expected;
+      if(expected!==undefined&&(!expected||!Number.isFinite(expected.amount)||typeof expected.description!=='string'))
+        return json({ok:false,error:'Invalid delete precondition'},400);
+      if(expected||body?.onlyIfAbsent===true){
+        const select=env.DB.prepare(
+          'SELECT id, amount, description, created_at, local_date, client_id FROM expenses WHERE '+selector
+        ).bind(key);
+        const current=expected?(await env.DB.batch([
+          env.DB.prepare('DELETE FROM expenses WHERE '+selector+' AND amount=?2 AND description=?3').bind(key,expected.amount,expected.description),
+          select
+        ]))[1].results[0]:await select.first();
+        if(current)return json({ok:false,error:'Expense changed elsewhere',current},409);
+      }else{
+        await env.DB.prepare('DELETE FROM expenses WHERE '+selector).bind(key).run();
       }
-      const id = Number(url.searchParams.get('id'));
-      if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400);
-      if(request.headers.get('content-type')?.includes('application/json')){
-        const body=await request.json(),expected=body?.expected;
-        if(expected!==undefined){
-          if(!expected||!Number.isFinite(expected.amount)||typeof expected.description!=='string')
-            return json({ok:false,error:'Invalid delete precondition'},400);
-          const [,remaining]=await env.DB.batch([
-            env.DB.prepare('DELETE FROM expenses WHERE id=?1 AND amount=?2 AND description=?3').bind(id,expected.amount,expected.description),
-            env.DB.prepare('SELECT id FROM expenses WHERE id=?1').bind(id)
-          ]);
-          if(remaining.results.length)return json({ok:false,error:'Expense changed elsewhere'},409);
-          return json({ok:true});
-        }
-      }
-      await env.DB.prepare('DELETE FROM expenses WHERE id=?1').bind(id).run();
       return json({ ok: true });
     }
 

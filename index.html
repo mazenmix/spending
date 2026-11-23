@@ -191,6 +191,11 @@ button{touch-action:manipulation}
 /* With the keyboard visible, reclaim the navigation space for form fields. */
 @media (pointer:coarse) and (max-width:1100px){body.keyboard-active .nav{display:none}
 body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:24px}}
+#syncReview[hidden]{display:none}
+.review-item{padding:9px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.review-item .setline{flex-wrap:wrap;gap:8px}
+.review-item p{margin:4px 0}
+.review-item button{min-height:44px}
 /* Desktop retains a little breathing room without a scrollable page. */
 @media(min-width:680px){
   body{padding:0}
@@ -246,7 +251,9 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
     <button id="connectCloudBtn" class="mini" type="button">Connect & Sync</button>
   </div>
   <p id="cloudKeyError" class="cloud-connect-error" role="status" aria-live="polite"></p>
-</div></div><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
+</div></div><section class="set" id="syncReview" hidden aria-labelledby="reviewTitle">
+<h3 id="reviewTitle">Review sync changes</h3><div id="reviewRows"></div>
+</section><div class="set"><h3>Cloud backup</h3><div class="export-actions"><button id="exportReport" class="mini export-primary" type="button">Export Report</button><button id="backup" class="mini" type="button">JSON Backup</button></div></div></div></section>
 </main>
 <nav class="nav" aria-label="Main navigation">
 <button type="button" class="on" data-v="today" aria-label="Today" aria-current="page">
@@ -370,23 +377,95 @@ function normalized(rows){
  });
 }
 
+const valuesOf=row=>({amount:Number(row.amount),description:row.description});
+const sameValues=(first,second)=>!!first&&!!second&&Number(first.amount)===Number(second.amount)&&first.description===second.description;
+async function deliver(item){
+ // Keep the original attempted values even if the offline form changes later.
+ if(!Object.hasOwn(item,'base')){
+  item.base=item.edited&&item.attempted!==false?null:valuesOf(item);
+ }
+ item.attempted=true;write(PENDING,pending);
+ if(item.cancelled){
+  const condition=item.base?{expected:item.base}:{onlyIfAbsent:true};
+  await api('DELETE',condition,'?client_id='+encodeURIComponent(item.client_id));
+  tx=tx.filter(row=>row.client_id!==item.client_id);
+  return;
+ }
+ let result;
+ if(!item.confirmedId){
+  result=await api('POST',item);
+  const [saved]=normalized([result.expense]);
+  if(!item.edited||sameValues(item,saved)){remember(saved);return}
+  if(!item.base)throw Object.assign(new Error('Original cloud values unknown'),{code:409,current:saved});
+  item.confirmedId=saved.id;
+  write(PENDING,pending);
+ }
+ try{
+  result=await api('PATCH',{id:item.confirmedId,...valuesOf(item),expected:item.base});
+ }catch(err){
+  if(err.code===404&&err.message==='Expense no longer exists')err.deletedRemotely=true;
+  throw err;
+ }
+ remember(normalized([result.expense])[0]);
+}
 async function syncPending(){
  for(const item of [...pending]){
-  if(item.cancelled){
-   await api('DELETE',null,'?client_id='+encodeURIComponent(item.client_id));
-   tx=tx.filter(row=>row.client_id!==item.client_id);
-  }else{
-   // Persist an ambiguous delivery before sending so a retry can use the same ID.
-   item.attempted=true;write(PENDING,pending);
-   let result=await api('POST',item);
-   if(item.edited&&(result.expense.description!==item.description||Number(result.expense.amount)!==item.amount)){
-    result=await api('PATCH',{id:result.expense.id,amount:item.amount,description:item.description});
-   }
-   remember(normalized([result.expense])[0]);
+  if(item.conflict)continue;
+  try{
+   await deliver(item);
+   pending=pending.filter(row=>row.client_id!==item.client_id);
+  }catch(err){
+   if(!(err.code===409&&err.current?.client_id===item.client_id)&&!err.deletedRemotely)throw err;
+   const current=err.current?normalized([err.current])[0]:null;
+   if(current)remember(current);
+   item.conflict={current};
   }
-  pending=pending.filter(row=>row.client_id!==item.client_id);
   save();
  }
+}
+function renderReview(){
+ const section=$('syncReview'),list=$('reviewRows');
+ const conflicts=pending.filter(item=>item.conflict);
+ section.hidden=!conflicts.length;
+ list.replaceChildren();
+ for(const item of conflicts){
+  const current=item.conflict.current,entry=document.createElement('div');
+  const line=text=>{const p=document.createElement('p');p.textContent=text;entry.append(p)};
+  entry.className='review-item';
+  line(fd(item.local_date)+' · '+tm(item.created_at));
+  line('On this device: '+(item.cancelled?'Delete ':'')+'₱'+money(item.amount)+' — '+item.description);
+  line(current?'In cloud: ₱'+money(current.amount)+' — '+current.description:'In cloud: deleted');
+  const actions=document.createElement('div');actions.className='setline';entry.append(actions);
+  const snapshot=JSON.stringify([item.amount,item.description,!!item.cancelled,current]);
+  for(const [choice,label] of [['cloud','Keep cloud version'],['local',item.cancelled?'Confirm deletion':'Use my entry']]){
+   const button=document.createElement('button');
+   button.type='button';button.className='mini';button.textContent=label;button.dataset.resolution=choice;
+   button.onclick=()=>resolveChange(item.client_id,snapshot,choice);
+   actions.append(button);
+  }
+  list.append(entry);
+ }
+}
+async function resolveChange(clientId,snapshot,choice){
+ try{
+  await withLedger(()=>{
+   const item=pending.find(entry=>entry.client_id===clientId);
+   if(!item?.conflict)return;
+   const current=item.conflict.current;
+   if(snapshot!==JSON.stringify([item.amount,item.description,!!item.cancelled,current]))throw new Error('Changed again');
+   if(choice==='cloud'){
+    tx=tx.filter(row=>row.client_id!==clientId);
+    if(current)remember(current);
+    pending=pending.filter(row=>row!==item);
+   }else{
+    item.base=current?valuesOf(current):null;
+    item.confirmedId=current?.id;
+    item.edited=true;delete item.conflict;
+   }
+   save();
+  });
+  renderAll();await syncAll();
+ }catch{renderAll();toast('Review the latest values and try again',false)}
 }
 async function syncAll(showToast=false){
  if(isDeletingAll)return;
@@ -405,8 +484,15 @@ async function syncAll(showToast=false){
    before=next;
   }while(before);
   tx=rows.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id);
-  save();cloudKeyInvalid=false;setStatus('ok','Cloud synced • '+tx.length+' saved expenses');
-  if(showToast)toast('Cloud sync complete',false);
+  const byClient=new Map(rows.filter(row=>row.client_id).map(row=>[row.client_id,row]));
+  for(const item of pending){
+   if(item.conflict)item.conflict.current=byClient.get(item.client_id)||null;
+  }
+  pending=pending.filter(item=>!(item.cancelled&&item.conflict&&!item.conflict.current));
+  save();cloudKeyInvalid=false;
+  const count=pending.filter(item=>item.conflict).length;
+  setStatus(count?'bad':'ok',count?count+' to review in Settings':'Cloud synced • '+tx.length+' saved expenses');
+  if(showToast)toast(count?'Review changes in Settings':'Cloud sync complete',false);
  }).catch(e=>{
   if(e.code===401)cloudKeyInvalid=true;
   setStatus('bad',e.code===401?'Cloud key needs reconnection':pending.length?'Saved on this device • pending sync':'Cloud unavailable — showing saved data');
@@ -450,9 +536,19 @@ GRAND TOTAL: ₱${money(sum(list))}
 TOTAL TRANSACTIONS: ${list.length}
 ========================================`;
 }
-async function shareReport(){const text=reportText();if(!text)return;try{if(navigator.share)await navigator.share({title:'MX Spend Report',text});else{await navigator.clipboard.writeText(text);toast('Report copied',false)}}catch{}}
-function downloadReport(){const text=reportText();if(!text)return;const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));a.href=url;a.download=`MX-Spend-${selected||'report'}.txt`;a.click();URL.revokeObjectURL(url)}
-function renderAll(){previewAmount();today();if($('reportsView').classList.contains('on'))reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
+async function shareReport(){
+ const text=reportText();if(!text)return;
+ if(navigator.share){
+  try{await navigator.share({title:'MX Spend Report',text});return}
+  catch(err){if(err.name==='AbortError')return}
+ }
+ try{await navigator.clipboard.writeText(text);toast('Report copied',false)}
+ catch{toast('Sharing unavailable. Use the download button.',false)}
+}
+function downloadReport(){
+ const text=reportText();if(text)downloadFile(text,'MX-Spend-'+(selected||'report')+'.txt','text/plain;charset=utf-8');
+}
+function renderAll(){renderReview();previewAmount();today();if($('reportsView').classList.contains('on'))reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
 async function addExpense(e){
  e.preventDefault();if(isDeletingAll||$('addBtn').disabled)return;
  const amount=parseAmount($('amount').value),description=$('desc').value.trim();
@@ -574,6 +670,7 @@ async function saveEditedExpense(e){
        (item.amount!==amount||item.description!==description)){
      throw Object.assign(new Error('Expense changed'),{code:409,current:item});
     }
+    if(!Object.hasOwn(item,'base')&&item.attempted!==false)item.base=item.edited?null:valuesOf(item);
     item.amount=amount;item.description=description;item.edited=true;
    }
    else{
@@ -586,6 +683,7 @@ async function saveEditedExpense(e){
   renderAll();
   $('editModal').classList.remove('on');editExpenseId=null;
   toast('Expense updated',false);
+  if(authKey()&&pending.some(item=>!item.conflict))void syncAll();
  }catch(err){
   if(err.code===409&&err.current){
    editOriginal={amount:Number(err.current.amount),description:err.current.description};
@@ -607,7 +705,11 @@ function downloadFile(content,filename,mime){
  setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 function exportJsonBackup(){
- downloadFile(JSON.stringify({exported_at:new Date().toISOString(),expenses:ledgerRows()},null,2),`MX-Spend-Backup-${dayKey()}.json`,'application/json;charset=utf-8');
+ const conflicts=pending.filter(item=>item.conflict).map(item=>({
+  client_id:item.client_id,action:item.cancelled?'delete':'edit',local:valuesOf(item),cloud:item.conflict.current,
+  created_at:item.created_at,local_date:item.local_date
+ }));
+ downloadFile(JSON.stringify({exported_at:new Date().toISOString(),expenses:ledgerRows(),...(conflicts.length?{sync_conflicts:conflicts}:{})},null,2),`MX-Spend-Backup-${dayKey()}.json`,'application/json;charset=utf-8');
 }
 function exportStyledReport(){
  const items=ledgerRows();
@@ -669,7 +771,11 @@ document.addEventListener('focusout',e=>{
   }
 });
 $('amount').addEventListener('input',previewAmount);
-window.addEventListener('storage',e=>{if(e.key===CACHE||e.key===PENDING){reloadLedger();renderAll()}});
+window.addEventListener('storage',event=>{
+ if(event.key===CACHE||event.key===PENDING){
+  void withLedger(renderAll).catch(()=>setStatus('bad','Could not read saved expenses'));
+ }
+});
 $('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(b.dataset.del);if(b.dataset.edit)edit(b.dataset.edit)});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('syncNow').onclick=()=>{if(!authKey()||cloudKeyInvalid)showCloudConnection();else syncAll(true)};$('connectCloudBtn').onclick=connectCloud;$('cloudKeyField').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();connectCloud()}});$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{checkDay();if(authKey())syncAll(false)});
 let midnightTimer;
 function checkDay(){

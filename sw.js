@@ -1,4 +1,4 @@
-const CACHE='mx-spend-v17-expense-reports';
+const CACHE='mx-spend-v18-offline-conflicts';
 const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png','./mxpeso-icon-192.png?v=20261019'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));
