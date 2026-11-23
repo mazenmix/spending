@@ -1,18 +1,24 @@
-const CACHE='mx-spend-v15-fixed-mobile-pwa-20261110';
-const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP)).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+const CACHE='mx-spend-v16-expense-sync';
+const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png','./mxpeso-icon-192.png?v=20261019'];
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));
+});
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('mx-spend-')&&key!==CACHE)
+    .map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
+});
 self.addEventListener('fetch',event=>{
-  const req=event.request;
-  if(req.method!=='GET')return;
-  const url=new URL(req.url);
-  if(url.origin!==self.location.origin)return;
-  if(url.pathname.startsWith('/api/'))return;
-  event.respondWith(
-    fetch(req).then(res=>{
-      const copy=res.clone();
-      caches.open(CACHE).then(c=>c.put(req,copy));
-      return res;
-    }).catch(()=>caches.match(req).then(cached=>cached||caches.match('./index.html')))
-  );
+  const req=event.request,url=new URL(req.url);
+  if(req.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    try{
+      const response=await fetch(req);
+      if(response.ok){try{await cache.put(req,response.clone())}catch{/* A full cache must not block the response. */}}
+      if(response.status<500)return response;
+      return await cache.match(req)||response;
+    }catch{
+      return await cache.match(req)||(req.mode==='navigate'?await cache.match('./index.html'):null)||Response.error();
+    }
+  })());
 });

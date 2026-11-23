@@ -7,8 +7,22 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-async function ensureSchema(db) {
-  try { await db.prepare('ALTER TABLE expenses ADD COLUMN client_id TEXT').run(); } catch (_) {}
+const schemas=new WeakMap();
+function ensureSchema(db){
+  if(!schemas.has(db))schemas.set(db,initializeSchema(db).catch(error=>{schemas.delete(db);throw error}));
+  return schemas.get(db);
+}
+async function initializeSchema(db) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    amount REAL NOT NULL, description TEXT NOT NULL,
+    created_at TEXT NOT NULL, local_date TEXT NOT NULL, client_id TEXT
+  )`).run();
+  const columns=await db.prepare('PRAGMA table_info(expenses)').all();
+  if (!columns.results.some(column=>column.name==='client_id')) {
+    try { await db.prepare('ALTER TABLE expenses ADD COLUMN client_id TEXT').run(); }
+    catch (error) { if (!/duplicate column/i.test(String(error))) throw error; }
+  }
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_expenses_local_date ON expenses(local_date)').run();
   await db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_client_id ON expenses(client_id)').run();
 }
@@ -19,32 +33,30 @@ function authorized(request, env) {
   return expected.length >= 6 && received === expected;
 }
 
+class InvalidExpense extends Error {}
+
 function normalizeExpense(raw) {
   const amount = Number(raw?.amount);
   const description = String(raw?.description || '').trim().slice(0, 120);
   const createdAt = String(raw?.created_at || new Date().toISOString());
   const localDate = String(raw?.local_date || '').trim();
   const clientId = String(raw?.client_id || crypto.randomUUID()).slice(0, 80);
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('Invalid amount');
-  if (!description) throw new Error('Description is required');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) throw new Error('Invalid local date');
-  if (Number.isNaN(Date.parse(createdAt))) throw new Error('Invalid date/time');
+  if (!Number.isFinite(amount) || amount <= 0) throw new InvalidExpense('Invalid amount');
+  if (!description) throw new InvalidExpense('Description is required');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) throw new InvalidExpense('Invalid local date');
+  if (Number.isNaN(Date.parse(createdAt))) throw new InvalidExpense('Invalid date/time');
   return { amount, description, createdAt, localDate, clientId };
 }
 
-async function insertOne(db, raw) {
-  const x = normalizeExpense(raw);
-  await db.prepare(`
-    INSERT OR IGNORE INTO expenses (amount, description, created_at, local_date, client_id)
-    VALUES (?1, ?2, ?3, ?4, ?5)
-  `).bind(x.amount, x.description, x.createdAt, x.localDate, x.clientId).run();
-  const row = await db.prepare(`
-    SELECT id, amount, description, created_at, local_date, client_id
-    FROM expenses WHERE client_id = ?1
-  `).bind(x.clientId).first();
-  return row;
+function insertStatement(db,x){
+  return db.prepare(`INSERT INTO expenses (amount, description, created_at, local_date, client_id)
+    VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(client_id) DO NOTHING`)
+    .bind(x.amount,x.description,x.createdAt,x.localDate,x.clientId);
 }
-
+function selectStatement(db,x){
+  return db.prepare(`SELECT id, amount, description, created_at, local_date, client_id
+    FROM expenses WHERE client_id=?1`).bind(x.clientId);
+}
 export async function onRequest(context) {
   const { request, env } = context;
   if (!env.DB) return json({ ok: false, error: 'D1 binding DB is missing' }, 500);
@@ -55,6 +67,18 @@ export async function onRequest(context) {
     const method = request.method.toUpperCase();
 
     if (method === 'GET') {
+      const query=new URL(request.url).searchParams;
+      if(query.get('page')==='1'){
+        const before=query.has('before')?Number(query.get('before')):null;
+        if(before!==null&&(!Number.isSafeInteger(before)||before<=0))return json({ok:false,error:'Invalid page cursor'},400);
+        const columns='SELECT id, amount, description, created_at, local_date, client_id FROM expenses';
+        const statement=before===null
+          ? env.DB.prepare(columns+' ORDER BY id DESC LIMIT 501')
+          : env.DB.prepare(columns+' WHERE id < ?1 ORDER BY id DESC LIMIT 501').bind(before);
+        const {results}=await statement.all();
+        const expenses=results.slice(0,500);
+        return json({ok:true,expenses,next_before:results.length>500?expenses[499].id:null});
+      }
       const { results } = await env.DB.prepare(`
         SELECT id, amount, description, created_at, local_date, client_id
         FROM expenses
@@ -67,12 +91,15 @@ export async function onRequest(context) {
     if (method === 'POST') {
       const body = await request.json();
       if (Array.isArray(body?.items)) {
-        const inserted = [];
-        for (const item of body.items.slice(0, 1000)) inserted.push(await insertOne(env.DB, item));
-        return json({ ok: true, expenses: inserted.filter(Boolean) });
+        if(body.items.length>1000)return json({ok:false,error:'Maximum 1000 expenses per batch'},400);
+        const items=body.items.map(normalizeExpense);
+        if(!items.length)return json({ok:true,expenses:[]});
+        const results=await env.DB.batch(items.flatMap(item=>[insertStatement(env.DB,item),selectStatement(env.DB,item)]));
+        return json({ok:true,expenses:items.map((_,index)=>results[2*index+1].results[0])});
       }
-      const row = await insertOne(env.DB, body);
-      return json({ ok: true, expense: row }, 201);
+      const item=normalizeExpense(body);
+      const [,selected]=await env.DB.batch([insertStatement(env.DB,item),selectStatement(env.DB,item)]);
+      return json({ok:true,expense:selected.results[0]},201);
     }
 
     if (method === 'PATCH') {
@@ -89,6 +116,7 @@ export async function onRequest(context) {
         SELECT id, amount, description, created_at, local_date, client_id
         FROM expenses WHERE id=?1
       `).bind(id).first();
+      if (!row) return json({ ok: false, error: 'Expense no longer exists' }, 404);
       return json({ ok: true, expense: row });
     }
 
@@ -102,6 +130,12 @@ export async function onRequest(context) {
         const result = await env.DB.prepare('DELETE FROM expenses').run();
         return json({ ok: true, deleted: result?.meta?.changes || 0 });
       }
+      const clientId=url.searchParams.get('client_id');
+      if(clientId){
+        if(clientId.length>80)return json({ok:false,error:'Invalid client ID'},400);
+        await env.DB.prepare('DELETE FROM expenses WHERE client_id=?1').bind(clientId).run();
+        return json({ok:true});
+      }
       const id = Number(url.searchParams.get('id'));
       if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400);
       await env.DB.prepare('DELETE FROM expenses WHERE id=?1').bind(id).run();
@@ -110,6 +144,6 @@ export async function onRequest(context) {
 
     return json({ ok: false, error: 'Method not allowed' }, 405);
   } catch (err) {
-    return json({ ok: false, error: err?.message || 'Server error' }, 500);
+    return json({ ok: false, error: err?.message || 'Server error' }, err instanceof InvalidExpense || err instanceof SyntaxError ? 400 : 500);
   }
 }
