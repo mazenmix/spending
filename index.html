@@ -700,6 +700,7 @@ async function saveEditedExpense(e){
  if(!Number.isFinite(amount)||amount<=0){$('editError').textContent='Enter a valid amount greater than zero.';$('editAmount').focus();return}
  if(!description){$('editError').textContent='Enter the expense description.';$('editDescription').focus();return}
  isSavingEdit=true;$('editSave').disabled=true;$('editCancel').disabled=true;$('editError').textContent='';
+ $('editAmount').readOnly=true;$('editDescription').readOnly=true;
  try{
   await withLedger(async()=>{
    const item=pending.find(x=>'p-'+x.client_id===id);
@@ -733,7 +734,10 @@ async function saveEditedExpense(e){
    $('editError').textContent=err.code===401?'Sync Key required. Reconnect in Settings.':'Could not save changes. Please retry.';
   }
   if((err.code===404||err.code===409)&&authKey())void syncAll();
- }finally{isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false}
+ }finally{
+  isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false;
+  $('editAmount').readOnly=false;$('editDescription').readOnly=false;
+ }
 }
 function toast(text,canUndo){clearTimeout(toastTimer);$('toastText').textContent=text;$('undo').style.display=canUndo?'block':'none';$('toast').classList.add('on');toastTimer=setTimeout(hideToast,4500)}function hideToast(){$('toast').classList.remove('on')}
 async function fetchQuote(url){

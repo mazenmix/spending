@@ -1,4 +1,4 @@
-const CACHE='mx-spend-v22-numeric-conversion-preview';
+const CACHE='mx-spend-v23-navigation-recovery';
 const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png','./mxpeso-icon-192.png?v=20261019'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));
@@ -12,13 +12,12 @@ self.addEventListener('fetch',event=>{
   if(req.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
+    let response;
     try{
-      const response=await fetch(req);
+      response=await fetch(req);
       if(response.ok){try{await cache.put(req,response.clone())}catch{/* A full cache must not block the response. */}}
       if(response.status<500)return response;
-      return await cache.match(req)||response;
-    }catch{
-      return await cache.match(req)||(req.mode==='navigate'?await cache.match('./index.html'):null)||Response.error();
-    }
+    }catch{/* A network error uses the same fallback as a server outage. */}
+    return await cache.match(req)||(req.mode==='navigate'?await cache.match('./index.html'):null)||response||Response.error();
   })());
 });
