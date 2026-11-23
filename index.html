@@ -278,7 +278,7 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
 <script>
 (()=>{'use strict';
 const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1',FALLBACK=.017;
-let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc?.rate)>0?Number(rc.rate):FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,isSavingEdit=false,cloudKeyInvalid=false;
+let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc?.rate)>0?Number(rc.rate):FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,editOriginal=null,isSavingEdit=false,cloudKeyInvalid=false;
 const $=id=>document.getElementById(id),money=n=>(Number(n)||0).toLocaleString('en-PH',{maximumFractionDigits:2}),dol=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}}function write(k,v){localStorage.setItem(k,JSON.stringify(v))}function dayKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function fromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}function fd(k,o={day:'numeric',month:'long',year:'numeric'}){return fromKey(k).toLocaleDateString('en-PH',o)}function dn(k){return fromKey(k).toLocaleDateString('en-PH',{weekday:'long'})}function tm(v){return new Date(v).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}function sum(a){return a.reduce((s,x)=>s+(Number(x.amount)||0),0)}function parseAmount(value){
  const ascii=String(value).trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632))
@@ -354,7 +354,7 @@ async function api(method='GET',body=null,query='',keyOverride=null){
  try{
   const r=await fetch(API+query,{method,headers,signal:controller.signal,cache:'no-store',body:body?JSON.stringify(body):undefined});
   const data=await r.json().catch(()=>null);
-  if(!r.ok||data?.ok!==true)throw Object.assign(new Error(data?.error||'Invalid cloud response'),{code:r.status});
+  if(!r.ok||data?.ok!==true)throw Object.assign(new Error(data?.error||'Invalid cloud response'),{code:r.status,current:data?.current});
   if(method==='GET'&&!Array.isArray(data.expenses))throw new Error('Expense list missing');
   if((method==='POST'||method==='PATCH')&&!Number.isSafeInteger(Number(data.expense?.id)||NaN))throw new Error('Expense confirmation missing');
   return data;
@@ -418,7 +418,7 @@ function todayCombined(){return ledgerRows().filter(x=>x.local_date===dayKey()).
 function today(){const k=dayKey(),list=todayCombined(),total=sum(list),b=Number(settings.budget)||0;$('dateText').textContent=fd(k);$('dayText').textContent=dn(k);$('total').textContent=money(total);$('usd').textContent=`≈ $${dol(total*rate)} USD`;$('count').textContent=list.length;$('items').textContent=`${list.length} ${list.length===1?'item':'items'}`;$('remain').textContent=b?`₱${money(Math.max(0,b-total))}`:'Not set';$('todayList').innerHTML=list.length?list.map(x=>`<div class="row"><div class="bubble">₱</div><div><div class="desc">${esc(x.description)}</div><div class="time">${tm(x.created_at)} ${x.pending?'<span class="pending">• pending sync</span>':''}</div></div><div class="amt">₱${money(x.amount)}<div class="smallusd">≈ $${dol(x.amount*rate)}</div></div><div class="actions"><button type="button" class="action-btn edit-btn" data-edit="${esc(x.id)}" aria-label="Edit expense" title="Edit expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4L16.5 3.5Z"/></svg></button><button type="button" class="action-btn delete-btn" data-del="${esc(x.id)}" aria-label="Delete expense" title="Delete expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1 14h12l1-14"/><path d="M10 10v6"/><path d="M14 10v6"/></svg></button></div></div>`).join(''):'<div class="empty"><b>No expenses yet</b></div>'}
 function weekKey(k){const d=fromKey(k),n=(d.getDay()+6)%7;d.setDate(d.getDate()-n);return dayKey(d)}function groupFor(p){const g={};for(const x of ledgerRows()){const k=p==='daily'?x.local_date:p==='weekly'?weekKey(x.local_date):p==='monthly'?x.local_date.slice(0,7):'all';(g[k]??=[]).push(x)}return g}function groupLabel(k,p){if(p==='daily')return{a:fd(k),b:dn(k)};if(p==='weekly')return{a:`Week of ${fd(k,{day:'numeric',month:'short',year:'numeric'})}`,b:'7-day period'};if(p==='monthly'){const d=new Date(k+'-01T12:00:00');return{a:d.toLocaleDateString('en-PH',{month:'long',year:'numeric'}),b:'Monthly total'}}return{a:'All History',b:`${ledgerRows().length} transactions`}}
 function reports(){$('allActions').hidden=period!=='all';const g=groupFor(period),keys=Object.keys(g).sort().reverse();if(!selected||!g[selected])selected=keys[0]||null;$('reports').innerHTML=keys.length?keys.map(k=>{const l=groupLabel(k,period),total=sum(g[k]);return`<button class="reportrow ${k===selected?'sel':''}" data-r="${k}"><div><b>${esc(l.a)}</b><br><span>${esc(l.b)}</span></div><div class="rt"><b>₱${money(total)}</b><br><span>≈ $${dol(total*rate)} USD</span></div></button>`}).join(''):'<div class="empty"><b>No reports yet</b></div>';renderDetail(g)}
-function renderDetail(g=groupFor(period)){const list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)):[];if(!list.length){$('detail').innerHTML='<div class="empty">Select a report.</div>';return}const l=groupLabel(selected,period);$('detail').innerHTML=`<h3>${esc(l.a)}</h3><div class="smallusd">${list.length} transactions • Total ₱${money(sum(list))} • ≈ $${dol(sum(list)*rate)} USD</div><div style="margin-top:10px">${list.map(x=>`<div class="detailentry"><span>${tm(x.created_at)}</span><span>${esc(x.description)}</span><b>₱${money(x.amount)}</b></div>`).join('')}</div><div class="reportbuttons"><button id="shareReport" class="share">↗ SHARE REPORT (TEXT)</button><button id="downloadReport" class="download">⇩</button></div>`;$('shareReport').onclick=shareReport;$('downloadReport').onclick=downloadReport}
+function renderDetail(g=groupFor(period)){const list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)):[];if(!list.length){$('detail').innerHTML='<div class="empty">Select a report.</div>';return}const l=groupLabel(selected,period);$('detail').innerHTML=`<h3>${esc(l.a)}</h3><div class="smallusd">${list.length} transactions • Total ₱${money(sum(list))} • ≈ $${dol(sum(list)*rate)} USD</div><div style="margin-top:10px">${list.map(x=>`<div class="detailentry"><span>${period==='daily'?'':fd(x.local_date,{day:'numeric',month:'short',year:'numeric'})+' · '}${tm(x.created_at)}</span><span>${esc(x.description)}</span><b>₱${money(x.amount)}</b></div>`).join('')}</div><div class="reportbuttons"><button id="shareReport" class="share">↗ SHARE REPORT (TEXT)</button><button id="downloadReport" class="download">⇩</button></div>`;$('shareReport').onclick=shareReport;$('downloadReport').onclick=downloadReport}
 function reportText(){
  const g=groupFor(period);
  const list=selected&&g[selected]?[...g[selected]]:[];
@@ -452,7 +452,7 @@ TOTAL TRANSACTIONS: ${list.length}
 }
 async function shareReport(){const text=reportText();if(!text)return;try{if(navigator.share)await navigator.share({title:'MX Spend Report',text});else{await navigator.clipboard.writeText(text);toast('Report copied',false)}}catch{}}
 function downloadReport(){const text=reportText();if(!text)return;const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));a.href=url;a.download=`MX-Spend-${selected||'report'}.txt`;a.click();URL.revokeObjectURL(url)}
-function renderAll(){previewAmount();today();reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
+function renderAll(){previewAmount();today();if($('reportsView').classList.contains('on'))reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
 async function addExpense(e){
  e.preventDefault();if(isDeletingAll||$('addBtn').disabled)return;
  const amount=parseAmount($('amount').value),description=$('desc').value.trim();
@@ -508,36 +508,43 @@ async function del(id){
   await withLedger(async()=>{
    const item=row.client_id?pending.find(x=>x.client_id===row.client_id):null;
    if(item){
+    if(item.cancelled)throw Object.assign(new Error('Missing expense'),{code:404});
+    if(item.amount!==row.amount||item.description!==row.description)throw Object.assign(new Error('Changed expense'),{code:409});
     // Legacy pending entries may already have reached the server.
     if(item.attempted===false)pending=pending.filter(x=>x!==item);
     else item.cancelled=true;
    }else{
     const saved=tx.find(x=>x.id===Number(id)||(row.client_id&&row.client_id===x.client_id));
-    if(!saved)return;
-    await api('DELETE',null,'?id='+saved.id);tx=tx.filter(x=>x.id!==saved.id);
+    if(!saved)throw Object.assign(new Error('Missing expense'),{code:404});
+    await api('DELETE',{expected:{amount:row.amount,description:row.description}},'?id='+saved.id);tx=tx.filter(x=>x.id!==saved.id);
    }
    save();deleted=row;
   });
   renderAll();toast('Expense deleted',true);
   if(authKey()&&pending.some(x=>x.cancelled))void syncAll();
- }catch{toast('Could not delete expense',false)}
+ }catch(err){
+  if((err.code===404||err.code===409)&&authKey())void syncAll();
+  toast(err.code===409?'Expense changed elsewhere. Review before deleting.':err.code===404?'Expense already removed':'Could not delete expense',false);
+ }
 }
 async function undoDelete(){
  const row=deleted;if(!row||isDeletingAll)return;
+ deleted=null;$('undo').disabled=true;
  try{
   await withLedger(()=>{
    const item=pending.find(x=>x.client_id===row.client_id);
    if(item)item.cancelled=false;
    else pending.push({amount:row.amount,description:row.description,created_at:row.created_at,local_date:row.local_date,client_id:row.client_id||crypto.randomUUID(),attempted:false,edited:true});
-   write(PENDING,pending);deleted=null;
+   write(PENDING,pending);
   });
   renderAll();hideToast();if(authKey())void syncAll();
- }catch{toast('Undo failed',false)}
+ }catch{deleted=row;toast('Undo failed — retry',true)}
+ finally{$('undo').disabled=false}
 }
 function edit(id){
  if(isDeletingAll||isSavingEdit)return;
  const x=findRow(id);if(!x)return;
- editExpenseId=id;
+ editExpenseId=id;editOriginal={amount:x.amount,description:x.description};
  $('editAmount').value=String(x.amount);
  $('editDescription').value=x.description;
  $('editError').textContent='';
@@ -561,11 +568,18 @@ async function saveEditedExpense(e){
  try{
   await withLedger(async()=>{
    const item=pending.find(x=>'p-'+x.client_id===id);
-   if(item&&!item.cancelled){item.amount=amount;item.description=description;item.edited=true}
+   if(item?.cancelled)throw Object.assign(new Error('Missing expense'),{code:404});
+   if(item){
+    if((item.amount!==editOriginal.amount||item.description!==editOriginal.description)&&
+       (item.amount!==amount||item.description!==description)){
+     throw Object.assign(new Error('Expense changed'),{code:409,current:item});
+    }
+    item.amount=amount;item.description=description;item.edited=true;
+   }
    else{
     const saved=tx.find(x=>String(x.id)===String(id)||'p-'+x.client_id===id);
-    if(!saved)throw new Error('Missing expense');
-    const d=await api('PATCH',{id:saved.id,amount,description});remember(normalized([d.expense])[0]);
+    if(!saved)throw Object.assign(new Error('Missing expense'),{code:404});
+    const d=await api('PATCH',{id:saved.id,amount,description,expected:editOriginal});remember(normalized([d.expense])[0]);
    }
    save();
   });
@@ -573,7 +587,15 @@ async function saveEditedExpense(e){
   $('editModal').classList.remove('on');editExpenseId=null;
   toast('Expense updated',false);
  }catch(err){
-  $('editError').textContent=err.code===401?'Sync Key required. Reconnect in Settings.':'Could not save changes. Please retry.';
+  if(err.code===409&&err.current){
+   editOriginal={amount:Number(err.current.amount),description:err.current.description};
+   $('editError').textContent='Changed elsewhere to ₱'+money(editOriginal.amount)+' — '+editOriginal.description+'. Save again to apply your entry, or cancel.';
+  }else if(err.code===404){
+   $('editError').textContent='This expense was deleted. Cancel to return to the list.';
+  }else{
+   $('editError').textContent=err.code===401?'Sync Key required. Reconnect in Settings.':'Could not save changes. Please retry.';
+  }
+  if((err.code===404||err.code===409)&&authKey())void syncAll();
  }finally{isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false}
 }
 function toast(text,canUndo){clearTimeout(toastTimer);$('toastText').textContent=text;$('undo').style.display=canUndo?'block':'none';$('toast').classList.add('on');toastTimer=setTimeout(hideToast,4500)}function hideToast(){$('toast').classList.remove('on')}
@@ -648,7 +670,18 @@ document.addEventListener('focusout',e=>{
 });
 $('amount').addEventListener('input',previewAmount);
 window.addEventListener('storage',e=>{if(e.key===CACHE||e.key===PENDING){reloadLedger();renderAll()}});
-$('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(b.dataset.del);if(b.dataset.edit)edit(b.dataset.edit)});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('syncNow').onclick=()=>{if(!authKey()||cloudKeyInvalid)showCloudConnection();else syncAll(true)};$('connectCloudBtn').onclick=connectCloud;$('cloudKeyField').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();connectCloud()}});$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{if(authKey())syncAll(false)});setInterval(()=>{const d=dayKey();if(d!==lastDay){lastDay=d;renderAll()}},30000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
+$('form').addEventListener('submit',addExpense);$('editForm').addEventListener('submit',saveEditedExpense);$('editCancel').onclick=closeEdit;$('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editModal').classList.contains('on'))closeEdit()});$('todayList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.del)del(b.dataset.del);if(b.dataset.edit)edit(b.dataset.edit)});$('reports').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;selected=b.dataset.r;reports()});$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;period=b.dataset.p;selected=null;document.querySelectorAll('#periods button').forEach(x=>x.classList.toggle('on',x===b));reports()});document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('deleteAll').onclick=deleteAllExpenses;$('undo').onclick=undoDelete;$('syncNow').onclick=()=>{if(!authKey()||cloudKeyInvalid)showCloudConnection();else syncAll(true)};$('connectCloudBtn').onclick=connectCloud;$('cloudKeyField').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();connectCloud()}});$('exportReport').onclick=exportStyledReport;$('backup').onclick=exportJsonBackup;window.addEventListener('online',()=>syncAll(false));window.addEventListener('focus',()=>{checkDay();if(authKey())syncAll(false)});
+let midnightTimer;
+function checkDay(){
+ clearTimeout(midnightTimer);
+ const now=new Date(),todayKey=dayKey(now);
+ if(todayKey!==lastDay){lastDay=todayKey;renderAll()}
+ const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+ midnightTimer=setTimeout(checkDay,Math.max(20,next-now+20));
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDay()});
+checkDay();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
 })();
 </script>
 </body>

@@ -15,7 +15,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      mirror: ${{ steps.mirror.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check browser and Pages Function syntax
+        run: |
+          node --check sw.js
+          node --check --input-type=module < functions/api/expenses.js
+          node --check --input-type=module < functions/_middleware.js
+          node -e "const s=require('fs').readFileSync('index.html','utf8');new (require('vm').Script)(s.split('<script>')[1].split('</script>')[0])"
+      - name: Check whether the GitHub Pages mirror is configured
+        id: mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(curl -sS -o "$RUNNER_TEMP/pages.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pages")
+          case "$status" in
+            200) echo 'enabled=true' >> "$GITHUB_OUTPUT" ;;
+            404) echo 'enabled=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo "Could not check the GitHub Pages mirror (HTTP $status)" >&2; exit 1 ;;
+          esac
+
   deploy:
+    needs: check
+    if: needs.check.outputs.mirror == 'true' || github.event_name == 'workflow_dispatch'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

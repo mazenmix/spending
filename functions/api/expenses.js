@@ -43,7 +43,9 @@ function normalizeExpense(raw) {
   const clientId = String(raw?.client_id || crypto.randomUUID()).slice(0, 80);
   if (!Number.isFinite(amount) || amount <= 0) throw new InvalidExpense('Invalid amount');
   if (!description) throw new InvalidExpense('Description is required');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) throw new InvalidExpense('Invalid local date');
+  const calendarDay=new Date(localDate+'T00:00:00Z');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(localDate)||!Number.isFinite(calendarDay.getTime())||
+     calendarDay.toISOString().slice(0,10)!==localDate)throw new InvalidExpense('Invalid local date');
   if (Number.isNaN(Date.parse(createdAt))) throw new InvalidExpense('Invalid date/time');
   return { amount, description, createdAt, localDate, clientId };
 }
@@ -110,13 +112,20 @@ export async function onRequest(context) {
       if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400);
       if (!Number.isFinite(amount) || amount <= 0) return json({ ok: false, error: 'Invalid amount' }, 400);
       if (!description) return json({ ok: false, error: 'Description is required' }, 400);
-      await env.DB.prepare('UPDATE expenses SET amount=?1, description=?2 WHERE id=?3')
-        .bind(amount, description, id).run();
-      const row = await env.DB.prepare(`
-        SELECT id, amount, description, created_at, local_date, client_id
-        FROM expenses WHERE id=?1
-      `).bind(id).first();
-      if (!row) return json({ ok: false, error: 'Expense no longer exists' }, 404);
+      const expected=body.expected;
+      if(expected!==undefined&&(!expected||!Number.isFinite(expected.amount)||typeof expected.description!=='string'))
+        return json({ok:false,error:'Invalid edit precondition'},400);
+      const update='UPDATE expenses SET amount=?1, description=?2 WHERE id=?3';
+      const statement=expected
+        ? env.DB.prepare(update+' AND amount=?4 AND description=?5').bind(amount,description,id,expected.amount,expected.description)
+        : env.DB.prepare(update).bind(amount,description,id);
+      const [,current]=await env.DB.batch([statement,env.DB.prepare(
+        'SELECT id, amount, description, created_at, local_date, client_id FROM expenses WHERE id=?1'
+      ).bind(id)]);
+      const row=current.results[0];
+      if(!row)return json({ok:false,error:'Expense no longer exists'},404);
+      if(Number(row.amount)!==amount||row.description!==description)
+        return json({ok:false,error:'Expense changed elsewhere',current:row},409);
       return json({ ok: true, expense: row });
     }
 
@@ -138,6 +147,19 @@ export async function onRequest(context) {
       }
       const id = Number(url.searchParams.get('id'));
       if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400);
+      if(request.headers.get('content-type')?.includes('application/json')){
+        const body=await request.json(),expected=body?.expected;
+        if(expected!==undefined){
+          if(!expected||!Number.isFinite(expected.amount)||typeof expected.description!=='string')
+            return json({ok:false,error:'Invalid delete precondition'},400);
+          const [,remaining]=await env.DB.batch([
+            env.DB.prepare('DELETE FROM expenses WHERE id=?1 AND amount=?2 AND description=?3').bind(id,expected.amount,expected.description),
+            env.DB.prepare('SELECT id FROM expenses WHERE id=?1').bind(id)
+          ]);
+          if(remaining.results.length)return json({ok:false,error:'Expense changed elsewhere'},409);
+          return json({ok:true});
+        }
+      }
       await env.DB.prepare('DELETE FROM expenses WHERE id=?1').bind(id).run();
       return json({ ok: true });
     }
