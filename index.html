@@ -210,23 +210,22 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
   #todayView .rate { display:none !important; }
   #todayView .usd { color:var(--green) !important; }
   #todayView .amount-label-row {
-    display:flex !important;
-    align-items:center;
-    justify-content:flex-end;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:8px;
+    align-items:start;
     width:100%;
     margin-bottom:7px;
-  }
-  #amountUsdPreview {
-    margin-left:auto;
     color:var(--green);
-    font-size:20px;
+    font-size:clamp(1rem,4.5vw,1.25rem);
     line-height:1.15;
     font-weight:900;
-    letter-spacing:.1px;
-    white-space:nowrap;
-    text-align:right;
+    font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere;
   }
-
+  .amount-label-row .usd-quote {text-align:right}
+  .amount-label-row small {display:block;margin-top:3px;color:var(--mut);font-size:.72rem;font-weight:500}
+  .amount-label-row small:empty {display:none}
 </style>
 </head>
 <body>
@@ -235,7 +234,10 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
 <div class="date date-modern"><div class="date-main"><div class="date-icon" aria-hidden="true">▣</div><div class="date-title"><strong>Today</strong><span id="dateText"></span></div></div><div id="dayText" class="pill"></div><div class="sync sync-pill" role="status" aria-live="polite"><i id="syncDot" class="dot"></i><span id="syncText">Starting…</span></div></div>
 <div class="card"><div class="ey">Total Spent Today</div><div class="total"><small>₱</small><span id="total">0</span></div><div id="usd" class="usd">≈ $0.00 USD</div><div id="rate" class="rate">Loading exchange rate…</div><div class="stats"><div class="stat"><span>Transactions</span><b id="count">0</b></div><div class="stat"><span>Remaining budget</span><b id="remain">Not set</b></div></div></div>
 <form id="form" class="card">
-<label class="amount-label-row" for="amount"><span id="amountUsdPreview">≈ $0.00 USD</span></label>
+<div class="amount-label-row" dir="ltr">
+  <div><output id="amountIqdPreview" for="amount" aria-label="Iraqi dinar equivalent">≈ 0 IQD</output><small id="iqdRateStatus"></small></div>
+  <div class="usd-quote"><output id="amountUsdPreview" for="amount" aria-label="US dollar equivalent">≈ $0.00 USD</output><small id="usdRateStatus"></small></div>
+</div>
 <div class="field"><i>₱</i><input id="amount" aria-label="Amount in Philippine pesos" inputmode="decimal" autocomplete="off" placeholder="0"></div>
 <div class="field text"><input id="desc" aria-label="Expense description" maxlength="120" autocomplete="off" placeholder=""></div>
 <button id="addBtn" class="add" type="submit">＋ ADD EXPENSE</button>
@@ -285,7 +287,7 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
 <script>
 (()=>{'use strict';
 const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1',FALLBACK=.017;
-let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=Number(rc?.rate)>0?Number(rc.rate):FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,editOriginal=null,isSavingEdit=false,cloudKeyInvalid=false;
+let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=validSavedUsd(rc)?Number(rc.rate):FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,editOriginal=null,isSavingEdit=false,cloudKeyInvalid=false;
 const $=id=>document.getElementById(id),money=n=>(Number(n)||0).toLocaleString('en-PH',{maximumFractionDigits:2}),dol=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}}function write(k,v){localStorage.setItem(k,JSON.stringify(v))}function dayKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function fromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}function fd(k,o={day:'numeric',month:'long',year:'numeric'}){return fromKey(k).toLocaleDateString('en-PH',o)}function dn(k){return fromKey(k).toLocaleDateString('en-PH',{weekday:'long'})}function tm(v){return new Date(v).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}function sum(a){return a.reduce((s,x)=>s+(Number(x.amount)||0),0)}function parseAmount(value){
  const ascii=String(value).trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632))
@@ -294,9 +296,40 @@ function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}c
  const number=Number(ascii.replaceAll(',',''));
  return Number.isSafeInteger(Math.round(number*100))?number:NaN;
 }
+const MARKET_URL='https://mxdollar.pages.dev/api/market';
+const IQD_KEY='mxs.fx.mxdollar.sell100.v1';
+const MINUTE=60000;
+const iqdFormat=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+const baghdadTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'});
+let market=read(IQD_KEY,null);
+if(!validMarket(market))market=null;
+let marketStatus=market?'cached':'loading',usdStatus=validSavedUsd(rc)?'cached':'loading';
+let ratesInFlight=null,lastRatesCheck=0;
+function validSavedUsd(quote){
+ return Number.isFinite(quote?.rate)&&quote.rate>0&&Number.isFinite(quote.at)&&quote.at>0;
+}
+function validMarket(quote){
+ const time=Date.parse(quote?.publishedAt);
+ return Number.isFinite(quote?.sell100)&&quote.sell100>=80000&&quote.sell100<=350000&&
+   Number.isFinite(time)&&time<=Date.now()+10*60000;
+}
 function previewAmount(){
- const amount=parseAmount($('amount').value);
- $('amountUsdPreview').textContent='≈ $'+dol((Number.isFinite(amount)?amount:0)*rate)+' USD';
+ const raw=$('amount').value.trim(),parsed=raw?parseAmount(raw):0;
+ const valid=Number.isFinite(parsed)&&parsed>=0,usd=parsed*rate;
+ const usdKnown=validSavedUsd(rc);
+ const usdOut=$('amountUsdPreview'),iqdOut=$('amountIqdPreview');
+ usdOut.textContent=valid?'≈ $'+dol(usd)+' USD':'— USD';
+ const canConvert=valid&&usdKnown&&market;
+ iqdOut.textContent=valid&&parsed===0?'≈ 0 IQD':canConvert?'≈ '+iqdFormat.format(usd*market.sell100/100)+' IQD':'— IQD';
+ const old=market&&(market.stale||Date.now()-Date.parse(market.publishedAt)>36*3600000);
+ const offline=!navigator.onLine;
+ $('usdRateStatus').textContent=!usdKnown?(usdStatus==='loading'?'Updating…':'Estimated rate'):
+    (usdStatus==='cached'||offline?'Cached rate':'');
+ $('iqdRateStatus').textContent=!market?(marketStatus==='loading'?'Updating…':'Rate unavailable'):
+    !usdKnown?(usdStatus==='loading'?'Updating…':'PHP rate unavailable'):
+    old?'Older market quote':(marketStatus==='cached'||usdStatus==='cached'||offline?'Cached rate':'');
+ iqdOut.title=market?'MX Dollar · Kifah sell · '+iqdFormat.format(market.sell100)+' IQD / 100 USD · '+baghdadTime.format(new Date(market.publishedAt))+' Baghdad':'MX Dollar · Kifah sell';
+ usdOut.title=usdKnown?'1 PHP ≈ '+rate+' USD'+(rc.date?' · '+rc.date:''):'Indicative USD estimate';
 }
 function authKey(){return localStorage.getItem(KEY)||''}function save(){write(CACHE,tx);write(PENDING,pending)}
 function reloadLedger(){
@@ -697,7 +730,48 @@ async function saveEditedExpense(e){
  }finally{isSavingEdit=false;$('editSave').disabled=false;$('editCancel').disabled=false}
 }
 function toast(text,canUndo){clearTimeout(toastTimer);$('toastText').textContent=text;$('undo').style.display=canUndo?'block':'none';$('toast').classList.add('on');toastTimer=setTimeout(hideToast,4500)}function hideToast(){$('toast').classList.remove('on')}
-async function refreshRate(show=false){try{const r=await fetch('https://api.frankfurter.app/latest?from=PHP&to=USD',{cache:'no-store'}),j=await r.json(),v=Number(j?.rates?.USD);if(Number.isFinite(v)&&v>0){rate=v;rc={rate:v,at:Date.now()};write(RATE,rc);renderAll();if(show)toast('Exchange rate updated',false)}}catch{if(show)toast('Using cached exchange rate',false)}}function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$(v+'View').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>{const active=x.dataset.v===v;x.classList.toggle('on',active);if(active)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});if(v==='reports')reports()}
+async function fetchQuote(url){
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch(url,{signal:controller.signal,cache:'no-store',credentials:'omit'});
+  if(!response.ok)throw new Error('Quote unavailable');
+  return await response.json();
+ }finally{clearTimeout(timeout)}
+}
+function cacheQuote(key,quote){
+ try{write(key,quote)}catch{/* The current quote remains available in memory. */}
+}
+async function refreshMarket(){
+ try{
+  const data=await fetchQuote(MARKET_URL),meta=data?.usd_meta;
+  const quote={sell100:data?.kifah?.sell,publishedAt:meta?.published_at,stale:meta?.stale===true};
+  if(meta?.source!=='IQWealth'||meta.unit!=='IQD per 100 USD'||!validMarket(quote)||
+     (market&&Date.parse(quote.publishedAt)<Date.parse(market.publishedAt)))throw new Error('Invalid quote');
+  market=quote;marketStatus='current';cacheQuote(IQD_KEY,quote);
+ }catch{marketStatus=market?'cached':'unavailable'}
+ previewAmount();
+}
+async function refreshUsd(){
+ try{
+  const data=await fetchQuote('https://api.frankfurter.app/latest?from=PHP&to=USD');
+  const value=data?.rates?.USD;
+  if(data?.base!=='PHP'||data.amount!==1||!Number.isFinite(value)||value<=0)throw new Error('Invalid PHP quote');
+  const changed=rate!==value;
+  rate=value;rc={rate:value,at:Date.now(),date:data.date};usdStatus='current';cacheQuote(RATE,rc);
+  if(changed){renderAll();return}
+ }catch{usdStatus=validSavedUsd(rc)?'cached':'unavailable'}
+ previewAmount();
+}
+function refreshQuotes(force=false){
+ if(document.hidden||ratesInFlight)return;
+ const now=Date.now();
+ if(!force&&now-lastRatesCheck<MINUTE-1000)return;
+ lastRatesCheck=now;
+ const tasks=[refreshMarket()];
+ if(usdStatus!=='current'||now-rc.at>=60*MINUTE)tasks.push(refreshUsd());
+ ratesInFlight=Promise.all(tasks).finally(()=>{ratesInFlight=null});
+}
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$(v+'View').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>{const active=x.dataset.v===v;x.classList.toggle('on',active);if(active)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});if(v==='reports')reports()}
 function downloadFile(content,filename,mime){
  const url=URL.createObjectURL(new Blob([content],{type:mime}));
  const a=document.createElement('a');a.href=url;a.download=filename;
@@ -787,7 +861,12 @@ function checkDay(){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDay()});
 checkDay();
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshRate(false);if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');renderAll();refreshQuotes(true);
+setInterval(()=>refreshQuotes(),MINUTE);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshQuotes()});
+window.addEventListener('online',()=>refreshQuotes(true));
+window.addEventListener('offline',previewAmount);
+if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
 })();
 </script>
 </body>
