@@ -223,9 +223,8 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
     font-variant-numeric:tabular-nums;
     overflow-wrap:anywhere;
   }
-  .amount-label-row .usd-quote {text-align:right}
-  .amount-label-row small {display:block;margin-top:3px;color:var(--mut);font-size:.72rem;font-weight:500}
-  .amount-label-row small:empty {display:none}
+  #amountIqdPreview {color:var(--orange)}
+  .amount-label-row .usd-quote {text-align:right;color:var(--green)}
 </style>
 </head>
 <body>
@@ -235,8 +234,8 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
 <div class="card"><div class="ey">Total Spent Today</div><div class="total"><small>₱</small><span id="total">0</span></div><div id="usd" class="usd">≈ $0.00 USD</div><div id="rate" class="rate">Loading exchange rate…</div><div class="stats"><div class="stat"><span>Transactions</span><b id="count">0</b></div><div class="stat"><span>Remaining budget</span><b id="remain">Not set</b></div></div></div>
 <form id="form" class="card">
 <div class="amount-label-row" dir="ltr">
-  <div><output id="amountIqdPreview" for="amount" aria-label="Iraqi dinar equivalent">≈ 0 IQD</output><small id="iqdRateStatus"></small></div>
-  <div class="usd-quote"><output id="amountUsdPreview" for="amount" aria-label="US dollar equivalent">≈ $0.00 USD</output><small id="usdRateStatus"></small></div>
+  <div><output id="amountIqdPreview" for="amount" aria-label="Iraqi dinar equivalent">0 IQD</output></div>
+  <div class="usd-quote"><output id="amountUsdPreview" for="amount" aria-label="US dollar equivalent">$0.00 USD</output></div>
 </div>
 <div class="field"><i>₱</i><input id="amount" aria-label="Amount in Philippine pesos" inputmode="decimal" autocomplete="off" placeholder="0"></div>
 <div class="field text"><input id="desc" aria-label="Expense description" maxlength="120" autocomplete="off" placeholder=""></div>
@@ -303,7 +302,7 @@ const iqdFormat=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
 const baghdadTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'});
 let market=read(IQD_KEY,null);
 if(!validMarket(market))market=null;
-let marketStatus=market?'cached':'loading',usdStatus=validSavedUsd(rc)?'cached':'loading';
+let usdStatus=validSavedUsd(rc)?'cached':'loading';
 let ratesInFlight=null,lastRatesCheck=0;
 function validSavedUsd(quote){
  return Number.isFinite(quote?.rate)&&quote.rate>0&&Number.isFinite(quote.at)&&quote.at>0;
@@ -318,16 +317,9 @@ function previewAmount(){
  const valid=Number.isFinite(parsed)&&parsed>=0,usd=parsed*rate;
  const usdKnown=validSavedUsd(rc);
  const usdOut=$('amountUsdPreview'),iqdOut=$('amountIqdPreview');
- usdOut.textContent=valid?'≈ $'+dol(usd)+' USD':'— USD';
+ usdOut.textContent=valid?'$'+dol(usd)+' USD':'— USD';
  const canConvert=valid&&usdKnown&&market;
- iqdOut.textContent=valid&&parsed===0?'≈ 0 IQD':canConvert?'≈ '+iqdFormat.format(usd*market.sell100/100)+' IQD':'— IQD';
- const old=market&&(market.stale||Date.now()-Date.parse(market.publishedAt)>36*3600000);
- const offline=!navigator.onLine;
- $('usdRateStatus').textContent=!usdKnown?(usdStatus==='loading'?'Updating…':'Estimated rate'):
-    (usdStatus==='cached'||offline?'Cached rate':'');
- $('iqdRateStatus').textContent=!market?(marketStatus==='loading'?'Updating…':'Rate unavailable'):
-    !usdKnown?(usdStatus==='loading'?'Updating…':'PHP rate unavailable'):
-    old?'Older market quote':(marketStatus==='cached'||usdStatus==='cached'||offline?'Cached rate':'');
+ iqdOut.textContent=valid&&parsed===0?'0 IQD':canConvert?iqdFormat.format(usd*market.sell100/100)+' IQD':'— IQD';
  iqdOut.title=market?'MX Dollar · Kifah sell · '+iqdFormat.format(market.sell100)+' IQD / 100 USD · '+baghdadTime.format(new Date(market.publishedAt))+' Baghdad':'MX Dollar · Kifah sell';
  usdOut.title=usdKnown?'1 PHP ≈ '+rate+' USD'+(rc.date?' · '+rc.date:''):'Indicative USD estimate';
 }
@@ -747,8 +739,8 @@ async function refreshMarket(){
   const quote={sell100:data?.kifah?.sell,publishedAt:meta?.published_at,stale:meta?.stale===true};
   if(meta?.source!=='IQWealth'||meta.unit!=='IQD per 100 USD'||!validMarket(quote)||
      (market&&Date.parse(quote.publishedAt)<Date.parse(market.publishedAt)))throw new Error('Invalid quote');
-  market=quote;marketStatus='current';cacheQuote(IQD_KEY,quote);
- }catch{marketStatus=market?'cached':'unavailable'}
+  market=quote;cacheQuote(IQD_KEY,quote);
+ }catch{return}
  previewAmount();
 }
 async function refreshUsd(){
@@ -865,7 +857,6 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');rende
 setInterval(()=>refreshQuotes(),MINUTE);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshQuotes()});
 window.addEventListener('online',()=>refreshQuotes(true));
-window.addEventListener('offline',previewAmount);
 if(authKey())syncAll(false);else setStatus('bad','Cloud disconnected • connect in Settings')
 })();
 </script>
