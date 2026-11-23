@@ -390,23 +390,31 @@ function setStatus(kind,text){
  $('cloudInfo').textContent=text;
  updateSyncButton();
 }
+async function syncWithNewKey(key,showToast=false){
+ if(syncInFlight)await syncInFlight;
+ if(authKey()!==key)return;
+ cloudKeyInvalid=false;
+ $('cloudConnectBox').hidden=true;
+ $('cloudKeyError').textContent='';
+ if(key)await syncAll(showToast);
+ else setStatus('bad','Cloud disconnected • connect in Settings');
+}
 async function connectCloud(){
- const key=$('cloudKeyField').value.trim();
+ const button=$('connectCloudBtn'),field=$('cloudKeyField');
+ if(button.disabled)return;
+ const key=field.value.trim();
  if(key.length<6){$('cloudKeyError').textContent='Enter your existing Sync Key.';return}
- const button=$('connectCloudBtn');
- button.disabled=true;
+ button.disabled=true;field.readOnly=true;
  $('cloudKeyError').textContent='';
  try{
   // Verify before saving; never overwrite a valid key with an unverified value.
   await api('GET',null,'?page=1',key);
   localStorage.setItem(KEY,key);
-  cloudKeyInvalid=false;
-  $('cloudKeyField').value='';
-  $('cloudConnectBox').hidden=true;
-  await syncAll(true);
+  field.value='';
+  await syncWithNewKey(key,true);
  }catch(err){
   $('cloudKeyError').textContent=err.code===401?'Incorrect Sync Key. Try again.':'Could not verify the key. Check your connection and retry.';
- }finally{button.disabled=false;updateSyncButton()}
+ }finally{button.disabled=false;field.readOnly=false;updateSyncButton()}
 }
 async function api(method='GET',body=null,query='',keyOverride=null){
  const key=keyOverride??authKey();
@@ -885,6 +893,8 @@ document.addEventListener('focusout',e=>{
 });
 $('amount').addEventListener('input',previewAmount);
 window.addEventListener('storage',event=>{
+ if(event.storageArea!==localStorage)return;
+ if(event.key===KEY){void syncWithNewKey(event.newValue||'');return}
  if(event.key===CACHE||event.key===PENDING){
   void withLedger(renderAll).catch(()=>setStatus('bad','Could not read saved expenses'));
  }

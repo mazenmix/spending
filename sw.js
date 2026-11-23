@@ -1,4 +1,4 @@
-const CACHE='mx-spend-v25-total-equivalents';
+const CACHE='mx-spend-v26-cloud-reconnect';
 const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png','./mxpeso-icon-192.png?v=20261019'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));
@@ -21,3 +21,4 @@ self.addEventListener('fetch',event=>{
     return await cache.match(req)||(req.mode==='navigate'?await cache.match('./index.html'):null)||response||Response.error();
   })());
 });
+
