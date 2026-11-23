@@ -1,4 +1,4 @@
-const CACHE='mx-spend-v21-preserve-drafts-and-verified-rates';
+const CACHE='mx-spend-v22-numeric-conversion-preview';
 const APP=['./','./index.html','./manifest.webmanifest','./mxpeso-icon-192.png','./mxpeso-icon-192.png?v=20261019'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));
