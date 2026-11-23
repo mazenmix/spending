@@ -285,8 +285,8 @@ body.keyboard-active .app{bottom:env(safe-area-inset-bottom,0px);padding-bottom:
 </div>
 <script>
 (()=>{'use strict';
-const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1',FALLBACK=.017;
-let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,{rate:FALLBACK,at:0}),rate=validSavedUsd(rc)?Number(rc.rate):FALLBACK,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,editOriginal=null,isSavingEdit=false,cloudKeyInvalid=false;
+const API='/api/expenses',KEY='mxs.sync.key',CACHE='mxs.cloud.cache.v2',PENDING='mxs.pending.v2',SET='mxs.settings.v1',RATE='mxs.rate.v1';
+let tx=read(CACHE,[]),pending=read(PENDING,[]),settings=read(SET,{budget:0}),rc=read(RATE,null),rate=validSavedUsd(rc)?rc.rate:null,period='daily',selected=null,deleted=null,toastTimer=null,lastDay=dayKey(),isDeletingAll=false,syncInFlight=null,editExpenseId=null,editOriginal=null,isSavingEdit=false,cloudKeyInvalid=false;
 const $=id=>document.getElementById(id),money=n=>(Number(n)||0).toLocaleString('en-PH',{maximumFractionDigits:2}),dol=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function read(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}}function write(k,v){localStorage.setItem(k,JSON.stringify(v))}function dayKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function fromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}function fd(k,o={day:'numeric',month:'long',year:'numeric'}){return fromKey(k).toLocaleDateString('en-PH',o)}function dn(k){return fromKey(k).toLocaleDateString('en-PH',{weekday:'long'})}function tm(v){return new Date(v).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}function sum(a){return a.reduce((s,x)=>s+(Number(x.amount)||0),0)}function parseAmount(value){
  const ascii=String(value).trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632))
@@ -312,16 +312,20 @@ function validMarket(quote){
  return Number.isFinite(quote?.sell100)&&quote.sell100>=80000&&quote.sell100<=350000&&
    Number.isFinite(time)&&time<=Date.now()+10*60000;
 }
+function formatUsd(pesos,prefix=''){
+ if(!Number.isFinite(pesos)||(pesos!==0&&rate===null))return '— USD';
+ return prefix+'$'+dol(pesos===0?0:pesos*rate)+' USD';
+}
 function previewAmount(){
  const raw=$('amount').value.trim(),parsed=raw?parseAmount(raw):0;
  const valid=Number.isFinite(parsed)&&parsed>=0,usd=parsed*rate;
  const usdKnown=validSavedUsd(rc);
  const usdOut=$('amountUsdPreview'),iqdOut=$('amountIqdPreview');
- usdOut.textContent=valid?'$'+dol(usd)+' USD':'— USD';
+ usdOut.textContent=valid?formatUsd(parsed):'— USD';
  const canConvert=valid&&usdKnown&&market;
  iqdOut.textContent=valid&&parsed===0?'0 IQD':canConvert?iqdFormat.format(usd*market.sell100/100)+' IQD':'— IQD';
  iqdOut.title=market?'MX Dollar · Kifah sell · '+iqdFormat.format(market.sell100)+' IQD / 100 USD · '+baghdadTime.format(new Date(market.publishedAt))+' Baghdad':'MX Dollar · Kifah sell';
- usdOut.title=usdKnown?'1 PHP ≈ '+rate+' USD'+(rc.date?' · '+rc.date:''):'Indicative USD estimate';
+ usdOut.title=usdKnown?'1 PHP ≈ '+rate+' USD'+(rc.date?' · '+rc.date:''):'USD rate unavailable';
 }
 function authKey(){return localStorage.getItem(KEY)||''}function save(){write(CACHE,tx);write(PENDING,pending)}
 function reloadLedger(){
@@ -526,10 +530,10 @@ async function syncAll(showToast=false){
  return syncInFlight;
 }
 function todayCombined(){return ledgerRows().filter(x=>x.local_date===dayKey()).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))}
-function today(){const k=dayKey(),list=todayCombined(),total=sum(list),b=Number(settings.budget)||0;$('dateText').textContent=fd(k);$('dayText').textContent=dn(k);$('total').textContent=money(total);$('usd').textContent=`≈ $${dol(total*rate)} USD`;$('count').textContent=list.length;$('items').textContent=`${list.length} ${list.length===1?'item':'items'}`;$('remain').textContent=b?`₱${money(Math.max(0,b-total))}`:'Not set';$('todayList').innerHTML=list.length?list.map(x=>`<div class="row"><div class="bubble">₱</div><div><div class="desc">${esc(x.description)}</div><div class="time">${tm(x.created_at)} ${x.pending?'<span class="pending">• pending sync</span>':''}</div></div><div class="amt">₱${money(x.amount)}<div class="smallusd">≈ $${dol(x.amount*rate)}</div></div><div class="actions"><button type="button" class="action-btn edit-btn" data-edit="${esc(x.id)}" aria-label="Edit expense" title="Edit expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4L16.5 3.5Z"/></svg></button><button type="button" class="action-btn delete-btn" data-del="${esc(x.id)}" aria-label="Delete expense" title="Delete expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1 14h12l1-14"/><path d="M10 10v6"/><path d="M14 10v6"/></svg></button></div></div>`).join(''):'<div class="empty"><b>No expenses yet</b></div>'}
+function today(){const k=dayKey(),list=todayCombined(),total=sum(list),b=Number(settings.budget)||0;$('dateText').textContent=fd(k);$('dayText').textContent=dn(k);$('total').textContent=money(total);$('usd').textContent=formatUsd(total,'≈ ');$('count').textContent=list.length;$('items').textContent=`${list.length} ${list.length===1?'item':'items'}`;$('remain').textContent=b?`₱${money(Math.max(0,b-total))}`:'Not set';$('todayList').innerHTML=list.length?list.map(x=>`<div class="row"><div class="bubble">₱</div><div><div class="desc">${esc(x.description)}</div><div class="time">${tm(x.created_at)} ${x.pending?'<span class="pending">• pending sync</span>':''}</div></div><div class="amt">₱${money(x.amount)}<div class="smallusd">${formatUsd(x.amount,'≈ ')}</div></div><div class="actions"><button type="button" class="action-btn edit-btn" data-edit="${esc(x.id)}" aria-label="Edit expense" title="Edit expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4L16.5 3.5Z"/></svg></button><button type="button" class="action-btn delete-btn" data-del="${esc(x.id)}" aria-label="Delete expense" title="Delete expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1 14h12l1-14"/><path d="M10 10v6"/><path d="M14 10v6"/></svg></button></div></div>`).join(''):'<div class="empty"><b>No expenses yet</b></div>'}
 function weekKey(k){const d=fromKey(k),n=(d.getDay()+6)%7;d.setDate(d.getDate()-n);return dayKey(d)}function groupFor(p){const g={};for(const x of ledgerRows()){const k=p==='daily'?x.local_date:p==='weekly'?weekKey(x.local_date):p==='monthly'?x.local_date.slice(0,7):'all';(g[k]??=[]).push(x)}return g}function groupLabel(k,p){if(p==='daily')return{a:fd(k),b:dn(k)};if(p==='weekly')return{a:`Week of ${fd(k,{day:'numeric',month:'short',year:'numeric'})}`,b:'7-day period'};if(p==='monthly'){const d=new Date(k+'-01T12:00:00');return{a:d.toLocaleDateString('en-PH',{month:'long',year:'numeric'}),b:'Monthly total'}}return{a:'All History',b:`${ledgerRows().length} transactions`}}
-function reports(){$('allActions').hidden=period!=='all';const g=groupFor(period),keys=Object.keys(g).sort().reverse();if(!selected||!g[selected])selected=keys[0]||null;$('reports').innerHTML=keys.length?keys.map(k=>{const l=groupLabel(k,period),total=sum(g[k]);return`<button class="reportrow ${k===selected?'sel':''}" data-r="${k}"><div><b>${esc(l.a)}</b><br><span>${esc(l.b)}</span></div><div class="rt"><b>₱${money(total)}</b><br><span>≈ $${dol(total*rate)} USD</span></div></button>`}).join(''):'<div class="empty"><b>No reports yet</b></div>';renderDetail(g)}
-function renderDetail(g=groupFor(period)){const list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)):[];if(!list.length){$('detail').innerHTML='<div class="empty">Select a report.</div>';return}const l=groupLabel(selected,period);$('detail').innerHTML=`<h3>${esc(l.a)}</h3><div class="smallusd">${list.length} transactions • Total ₱${money(sum(list))} • ≈ $${dol(sum(list)*rate)} USD</div><div style="margin-top:10px">${list.map(x=>`<div class="detailentry"><span>${period==='daily'?'':fd(x.local_date,{day:'numeric',month:'short',year:'numeric'})+' · '}${tm(x.created_at)}</span><span>${esc(x.description)}</span><b>₱${money(x.amount)}</b></div>`).join('')}</div><div class="reportbuttons"><button id="shareReport" class="share">↗ SHARE REPORT (TEXT)</button><button id="downloadReport" class="download">⇩</button></div>`;$('shareReport').onclick=shareReport;$('downloadReport').onclick=downloadReport}
+function reports(){$('allActions').hidden=period!=='all';const g=groupFor(period),keys=Object.keys(g).sort().reverse();if(!selected||!g[selected])selected=keys[0]||null;$('reports').innerHTML=keys.length?keys.map(k=>{const l=groupLabel(k,period),total=sum(g[k]);return`<button class="reportrow ${k===selected?'sel':''}" data-r="${k}"><div><b>${esc(l.a)}</b><br><span>${esc(l.b)}</span></div><div class="rt"><b>₱${money(total)}</b><br><span>${formatUsd(total,'≈ ')}</span></div></button>`}).join(''):'<div class="empty"><b>No reports yet</b></div>';renderDetail(g)}
+function renderDetail(g=groupFor(period)){const list=selected&&g[selected]?[...g[selected]].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)):[];if(!list.length){$('detail').innerHTML='<div class="empty">Select a report.</div>';return}const l=groupLabel(selected,period);$('detail').innerHTML=`<h3>${esc(l.a)}</h3><div class="smallusd">${list.length} transactions • Total ₱${money(sum(list))} • ${formatUsd(sum(list),'≈ ')}</div><div style="margin-top:10px">${list.map(x=>`<div class="detailentry"><span>${period==='daily'?'':fd(x.local_date,{day:'numeric',month:'short',year:'numeric'})+' · '}${tm(x.created_at)}</span><span>${esc(x.description)}</span><b>₱${money(x.amount)}</b></div>`).join('')}</div><div class="reportbuttons"><button id="shareReport" class="share">↗ SHARE REPORT (TEXT)</button><button id="downloadReport" class="download">⇩</button></div>`;$('shareReport').onclick=shareReport;$('downloadReport').onclick=downloadReport}
 function reportText(){
  const g=groupFor(period);
  const list=selected&&g[selected]?[...g[selected]]:[];
@@ -557,7 +561,7 @@ ${sections.join(String.fromCharCode(10,10))}
 
 ========================================
 GRAND TOTAL: ₱${money(sum(list))}
-≈ ${dol(sum(list)*rate)} USD
+${formatUsd(sum(list),'≈ ')}
 TOTAL TRANSACTIONS: ${list.length}
 ========================================`;
 }
@@ -573,17 +577,24 @@ async function shareReport(){
 function downloadReport(){
  const text=reportText();if(text)downloadFile(text,'MX-Spend-'+(selected||'report')+'.txt','text/plain;charset=utf-8');
 }
-function renderAll(){renderReview();previewAmount();today();if($('reportsView').classList.contains('on'))reports();$('rate').textContent=`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
+function renderAll(){renderReview();previewAmount();today();if($('reportsView').classList.contains('on'))reports();$('rate').textContent=rate===null?'USD rate unavailable':`1 PHP ≈ $${rate.toFixed(5)} • ${Date.now()-Number(rc.at||0)<36e5?'live/cached rate':'cached rate'}`;}
+let draftRevision=0;
+$('form').addEventListener('input',()=>{draftRevision++});
 async function addExpense(e){
  e.preventDefault();if(isDeletingAll||$('addBtn').disabled)return;
  const amount=parseAmount($('amount').value),description=$('desc').value.trim();
  if(!(amount>0)){toast('Enter a valid peso amount (up to 2 decimals)',false);$('amount').focus();return}
  if(!description){toast('Write what you spent it on',false);$('desc').focus();return}
+ const submittedRevision=draftRevision;
  const now=new Date(),item={amount,description,created_at:now.toISOString(),local_date:dayKey(now),client_id:crypto.randomUUID(),attempted:false};
  $('addBtn').disabled=true;
  try{
   await withLedger(()=>{pending.push(item);write(PENDING,pending)});
-  $('form').reset();document.activeElement?.blur();renderAll();
+  if(draftRevision===submittedRevision){
+   $('form').reset();
+   if($('form').contains(document.activeElement))document.activeElement.blur();
+  }
+  renderAll();
   setStatus('','Saved on this device • pending sync');toast('₱'+money(amount)+' added',false);
   if(authKey()&&!cloudKeyInvalid)void syncAll();
  }catch{reloadLedger();toast('Could not save on this device. Keep the form and retry.',false)}
@@ -748,6 +759,9 @@ async function refreshUsd(){
   const data=await fetchQuote('https://api.frankfurter.app/latest?from=PHP&to=USD');
   const value=data?.rates?.USD;
   if(data?.base!=='PHP'||data.amount!==1||!Number.isFinite(value)||value<=0)throw new Error('Invalid PHP quote');
+  const published=Date.parse(data.date+'T00:00:00Z');
+  if(typeof data.date!=='string'||!Number.isFinite(published)||new Date(published).toISOString().slice(0,10)!==data.date||
+     published>Date.now()+86400000||published<Date.parse(rc?.date))throw new Error('Invalid or older PHP quote');
   const changed=rate!==value;
   rate=value;rc={rate:value,at:Date.now(),date:data.date};usdStatus='current';cacheQuote(RATE,rc);
   if(changed){renderAll();return}
@@ -814,7 +828,7 @@ table{border-collapse:collapse;width:100%}td{padding:13px 22px;border-bottom:1px
 @media print{body{background:#fff}.wrap{max-width:none;margin:0;padding:0}.toolbar{display:none}.hero{border-radius:0;box-shadow:none;print-color-adjust:exact;-webkit-print-color-adjust:exact}.day{box-shadow:none;break-inside:avoid}footer{page-break-inside:avoid}}
 </style></head><body><main class="wrap"><div class="toolbar"><button onclick="window.print()">Print / Save as PDF</button></div>
 <header class="hero"><div class="logo"><b>MX</b> Spend</div><div class="eyebrow">COMPLETE EXPENSE REPORT · ${dateLabel}</div>
-<div class="stats"><div class="stat"><span>Total Expenses</span><strong>₱${money(total)}</strong></div><div class="stat"><span>USD Estimate</span><strong>${dol(total*rate)}</strong></div><div class="stat"><span>Transactions</span><strong>${items.length}</strong></div><div class="stat"><span>Days</span><strong>${keys.length}</strong></div></div></header>
+<div class="stats"><div class="stat"><span>Total Expenses</span><strong>₱${money(total)}</strong></div><div class="stat"><span>USD Estimate</span><strong>${formatUsd(total)}</strong></div><div class="stat"><span>Transactions</span><strong>${items.length}</strong></div><div class="stat"><span>Days</span><strong>${keys.length}</strong></div></div></header>
 ${sections}<footer>MX Spend · Personal Expense Report · Amounts in Philippine pesos (PHP). USD values are estimates.</footer>
 </main></bo${'dy'}></html>`;
  downloadFile(report,`MX-Spend-Report-${dayKey()}.html`,'text/html;charset=utf-8');
