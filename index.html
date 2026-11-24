@@ -797,7 +797,7 @@ async function refreshMarket(){
 }
 async function refreshUsd(){
  try{
-  const data=await fetchQuote('https://api.frankfurter.app/latest?from=PHP&to=USD');
+  const data=await fetchQuote('https://api.frankfurter.dev/v1/latest?base=PHP&symbols=USD');
   const value=data?.rates?.USD;
   if(data?.base!=='PHP'||data.amount!==1||!Number.isFinite(value)||value<=0)throw new Error('Invalid PHP quote');
   const published=Date.parse(data.date+'T00:00:00Z');
